@@ -1,32 +1,63 @@
-# 🚀 LiteTrack
+# 🚀 LiteTrack | Open Source Web Analytics
 
-**A lightweight, privacy-focused web analytics suite featuring modular AI provider flexibility, real-time event simulation, and seamless Cloudflare integration.**
-
----
-
-## ✨ Modular Architecture
-
-LiteTrack is designed for community extensibility. Unlike other dashboard tools, LiteTrack allows you to swap the intelligence engine powering your insights.
-
-- **🛡️ Configurable AI Providers:** Switch between built-in Gemini intelligence and your own custom API endpoints.
-- **🧪 Multi-Model Support:** Toggle between Flash (high-speed tracking) and Pro (deep behavioral analysis) models.
-- **🔑 Dynamic Key Selection:** Leverage your own Google Cloud projects to increase rate limits and access premium models.
-- **📊 Interactive Highlighting:** Visual conversion cues that respond instantly to incoming simulator traffic.
+### [📖 GETTING STARTED GUIDE](./GETTING_STARTED.md) • [🛠️ DEPLOYMENT](./GETTING_STARTED.md#step-1-receiver-setup) • [🧠 AI CONFIG](./GETTING_STARTED.md#step-4-ai-insights)
 
 ---
 
-## 🚀 Setting Up Your Provider
+LiteTrack is a high-performance, privacy-first web analytics suite designed for the modern edge. It eliminates complex tracking algorithms in favor of a transparent, modular architecture that puts you in control of your data and your intelligence engine.
 
-1. **Deployment:** Launch your Cloudflare receiver (Template in **Deployment** tab).
-2. **AI Settings:** Navigate to **Settings** to choose your provider.
-   - **Built-in:** Uses standard environment keys.
-   - **Custom:** Define your own URL endpoint to route analytics to OpenAI, Anthropic, or an internal model.
-3. **Verify:** Use the **Integration** tab to send simulated traffic and watch your conversion funnels and AI reports update in real-time.
+## 📈 Visual Workflow
+
+```mermaid
+graph LR
+    A[User Browser] -- "sendBeacon / Fetch" --> B(Cloudflare Worker)
+    B -- "CORS POST" --> C{LiteTrack Dashboard}
+    C -- "Inference" --> D[Gemini 3 Flash]
+    C -- "Custom Route" --> E[Proprietary AI API]
+    D --> F[Actionable Growth Insights]
+    E --> F
+```
+
+> **The Flow:** Data is ingested at the **Network Edge** (Cloudflare), visualized in **Real-Time** on the dashboard, and analyzed by **State-of-the-Art AI** to provide strategic business intelligence.
 
 ---
 
-## 🤝 Community & Flexibility
+## ✨ Core Features
 
-We believe analytics should be transparent and flexible. LiteTrack is 100% open-source, and our new modular AI service makes it the perfect foundation for custom business intelligence dashboards.
+| 🌓 Dual Theming | 🧠 Modular AI | ⚡ Edge Optimized |
+| :--- | :--- | :--- |
+| seamless transition between high-contrast **Light** and deep **Slate Dark** modes. | Toggle between **Gemini Built-in** or route data to your own **Custom Inference** endpoints. | Zero-dependency scripts designed for **Cloudflare Workers** and minimal client overhead. |
 
-[Read the Getting Started Guide](./GETTING_STARTED.md)
+---
+
+## 📊 Advanced Metrics Engine
+
+LiteTrack now supports industry-standard behavioral metrics out of the box:
+
+- **🟢 Active Now:** Real-time presence detection (5-minute sliding window).
+- **⏱️ Load Velocity:** Core Web Vital monitoring (TTI/Interaction timing).
+- **🌍 Unique Sources:** Global referrer domain tracking.
+- **📉 Bounce Logic:** Automated drop-off detection for landing pages.
+- **🔀 Pipeline Score:** Direct home-to-purchase conversion efficiency.
+
+---
+
+## 🛠️ Modular Architecture
+
+LiteTrack is built for the community. We've exposed the **AI Strategy Engine** so you can:
+- Use **Gemini 3 Pro** for deep reasoning on complex traffic patterns.
+- Connect to an **Internal LLM** via the Custom Endpoint provider.
+- Manage multiple **API Keys** via the integrated AI Studio selector.
+
+---
+
+## 🤝 Community & Support
+
+LiteTrack is 100% open source. We believe in analytics that respects user privacy while providing developers with the tools they need to build better products.
+
+- **License:** MIT
+- **Contributions:** Pull requests are welcome for new StatCard visualizations or AI Provider adapters.
+
+---
+
+[Return to Dashboard](#)

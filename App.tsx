@@ -48,7 +48,7 @@ const App: React.FC = () => {
   const [sentLogs, setSentLogs] = useState<SentLog[]>([]);
   const [customJson, setCustomJson] = useState(JSON.stringify(SCENARIOS.ecommerce, null, 2));
 
-  // Sync state to local storage
+  // Sync state to local storage and apply theme class
   useEffect(() => {
     localStorage.setItem('litetrack_ai_config', JSON.stringify(aiConfig));
     localStorage.setItem('litetrack_endpoint', customEndpoint);
@@ -280,7 +280,7 @@ const App: React.FC = () => {
             { id: 'technical', label: 'Technical', help: 'Device, OS, and Browser distributions.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
             { id: 'funnels', label: 'Funnels', help: 'Multi-stage conversion path analysis.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg> },
             { id: 'install', label: 'Integration', help: 'Live handshake control and simulator tools.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
-            { id: 'deploy', label: 'Deployment', help: 'optimized edge-scripts for Cloudflare Workers.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
+            { id: 'deploy', label: 'Deployment', help: 'Optimized edge-scripts for Cloudflare Workers.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
             { id: 'settings', label: 'Settings', help: 'AI model configuration and provider endpoints.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> }
           ].map((tab) => (
             <li key={tab.id} className="group/nav relative">
@@ -307,6 +307,7 @@ const App: React.FC = () => {
             <p className="text-slate-500 text-sm font-medium">Real-time Web Analytics Interface</p>
           </div>
           <div className="flex items-center gap-4">
+             {/* Theme Toggle Button */}
              <button 
                 onClick={toggleTheme}
                 className={`p-2.5 rounded-xl border transition-all ${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-yellow-400' : 'bg-white border-slate-200 text-slate-600'}`}
@@ -455,9 +456,6 @@ const App: React.FC = () => {
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="absolute top-6 right-8 opacity-0 group-hover/traffic:opacity-100 transition-all text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded">
-                    Aggregated by 1-minute windows
-                  </div>
                 </div>
 
                 <div className={`rounded-3xl p-6 text-white overflow-hidden relative border shadow-2xl flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-slate-900 border-slate-800'}`}>
@@ -501,13 +499,6 @@ const App: React.FC = () => {
                      <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-indigo-500"></div> User Agent Analysis
                      </div>
-                     <div className="relative group/chartinfo">
-                        <svg className="w-4 h-4 text-slate-300 hover:text-indigo-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <div className="absolute bottom-full right-0 mb-3 w-40 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/chartinfo:opacity-100 group-hover/chartinfo:visible transition-all text-center font-bold uppercase tracking-widest pointer-events-none">
-                            Aggregated browser usage from metadata tags.
-                            <div className="absolute top-full right-1.5 border-8 border-transparent border-t-slate-800"></div>
-                        </div>
-                     </div>
                   </h3>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
@@ -529,13 +520,6 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-indigo-500"></div> OS Distribution
                     </div>
-                    <div className="relative group/chartinfo">
-                        <svg className="w-4 h-4 text-slate-300 hover:text-indigo-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <div className="absolute bottom-full right-0 mb-3 w-40 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/chartinfo:opacity-100 group-hover/chartinfo:visible transition-all text-center font-bold uppercase tracking-widest pointer-events-none">
-                            Operating system share among unique visitors.
-                            <div className="absolute top-full right-1.5 border-8 border-transparent border-t-slate-800"></div>
-                        </div>
-                     </div>
                   </h3>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
@@ -572,23 +556,18 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-8">
                           <div className="w-44 text-right hidden md:block">
                              <div className={`flex items-center justify-end gap-3 mb-1 transition-colors duration-300 ${lastMatchedStep === step.stepKey ? 'text-indigo-600' : theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
-                               {lastMatchedStep === step.stepKey && <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>}
                                <span className="text-sm font-bold">{step.label}</span>
                              </div>
                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{step.count.toLocaleString()} sessions</p>
                           </div>
                           <div className={`flex-1 h-16 rounded-2xl relative overflow-hidden border-2 transition-all duration-500 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-50'} ${lastMatchedStep === step.stepKey ? 'shadow-xl shadow-indigo-500/20 border-indigo-500' : theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
                              <div 
-                                className={`h-full bg-indigo-600 transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-end px-6 relative
-                                  ${lastMatchedStep === step.stepKey ? 'brightness-125 saturate-150' : ''}`}
+                                className={`h-full bg-indigo-600 transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-end px-6 relative`}
                                 style={{ width: `${(step.count / (funnelData.steps[0].count || 1)) * 100}%` }}
                              >
                                 <span className={`text-[11px] font-black text-white transition-all duration-300 ${lastMatchedStep === step.stepKey ? 'scale-125' : 'opacity-40'}`}>
                                   {step.conversion}%
                                 </span>
-                             </div>
-                             <div className="absolute top-1/2 left-4 -translate-y-1/2 opacity-0 invisible group-hover/funnel:opacity-100 group-hover/funnel:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl">
-                               {step.count.toLocaleString()} Users reached this stage
                              </div>
                           </div>
                         </div>
@@ -600,13 +579,8 @@ const App: React.FC = () => {
                              </div>
                              <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border-2 transition-all duration-500 flex items-center gap-2 cursor-help
                                ${lastMatchedStep === funnelData.steps[idx].stepKey ? 'bg-rose-50 text-rose-500 border-rose-200 translate-x-2' : theme === 'dark' ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-50 text-slate-400 border-slate-100 opacity-50 hover:opacity-100'}`}>
-                               <svg className={`w-2.5 h-2.5 transition-transform duration-500 ${lastMatchedStep === step.stepKey ? 'animate-bounce' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 14l-7 7-7-7" /></svg>
                                {step.dropoff}% drop-off
                              </span>
-                             <div className="absolute top-1/2 left-full ml-4 -translate-y-1/2 opacity-0 invisible group-hover/leakage:opacity-100 group-hover/leakage:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl w-40 leading-relaxed">
-                               Percentage of users who abandoned the session at this step.
-                               <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900"></div>
-                             </div>
                           </div>
                         )}
                       </div>
@@ -626,7 +600,7 @@ const App: React.FC = () => {
                       </div>
                       <div className={!isVerified ? 'text-center' : ''}>
                         <h2 className={`text-2xl font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Handshake Center</h2>
-                        <p className="text-sm text-slate-500 font-medium">{isVerified ? 'The pipeline is established and synchronized.' : 'Connect your Cloudflare Edge receiver to track traffic.'}</p>
+                        <p className="text-sm text-slate-500 font-medium">Verify your data ingestion pipeline.</p>
                       </div>
                     </div>
 
@@ -638,18 +612,12 @@ const App: React.FC = () => {
                             value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)}
                             className={`flex-1 border-2 rounded-2xl px-6 py-4 text-sm focus:ring-4 outline-none font-mono transition-all ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-indigo-900/30 focus:border-indigo-500' : 'bg-slate-50 border-slate-100 focus:ring-indigo-100 focus:border-indigo-600'}`}
                           />
-                          <div className="relative group/establish">
-                            <button 
-                              onClick={verifyConnection} disabled={testStatus === 'sending'}
-                              className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 dark:shadow-indigo-900/20 active:scale-95 whitespace-nowrap"
-                            >
-                              {testStatus === 'sending' ? 'Verifying...' : 'Establish Connection'}
-                            </button>
-                            <div className="absolute top-full right-0 mt-3 w-56 p-3 bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-xl opacity-0 invisible group-hover/establish:opacity-100 group-hover/establish:visible transition-all z-50 pointer-events-none shadow-2xl border border-white/10 leading-relaxed text-center">
-                              Sends a POST request to verify the receiver endpoint handles CORS and JSON inputs correctly.
-                              <div className="absolute bottom-full right-8 border-8 border-transparent border-b-slate-900"></div>
-                            </div>
-                          </div>
+                          <button 
+                            onClick={verifyConnection} disabled={testStatus === 'sending'}
+                            className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 dark:shadow-indigo-900/20 active:scale-95 whitespace-nowrap"
+                          >
+                            {testStatus === 'sending' ? 'Verifying...' : 'Establish Connection'}
+                          </button>
                         </>
                       ) : (
                         <div className={`flex items-center justify-between w-full border-2 px-6 py-4 rounded-2xl shadow-inner relative group/active-link ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
@@ -660,71 +628,42 @@ const App: React.FC = () => {
                           >
                             Disconnect
                           </button>
-                          <div className="absolute top-full left-0 mt-3 w-48 p-2 bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg opacity-0 invisible group-hover/active-link:opacity-100 group-hover/active-link:visible transition-all z-50 pointer-events-none text-center border border-white/5">
-                            Active ingestion endpoint
-                            <div className="absolute bottom-full left-8 border-8 border-transparent border-b-slate-800"></div>
-                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  {errorMessage && <p className="text-rose-500 text-xs font-bold mt-8 animate-in slide-in-from-top-1 px-5 py-3.5 bg-rose-50 dark:bg-rose-950/30 rounded-2xl border-2 border-rose-100 dark:border-rose-900/30 text-center">{errorMessage}</p>}
                </div>
 
                {isVerified && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-bottom-6 duration-700">
                     <div className={`p-10 rounded-3xl border transition-colors flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
-                        </div>
-                        Quick Simulation
-                      </h3>
+                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Quick Simulation</h3>
                       <div className="grid grid-cols-1 gap-4 flex-1">
                          {[
-                           { label: 'Simulate Home Landing', type: 'pageview', sub: 'Event: pageview | /home', help: 'Increments funnel base. Path: /home' },
-                           { label: 'Enter Pricing Journey', type: 'view_pricing', sub: 'Event: pageview | /pricing', help: 'Path: /pricing' },
-                           { label: 'Trigger Signup Modal', type: 'signup_start', sub: 'Event: signup_start', help: 'Type: signup_start' },
-                           { label: 'Confirm Checkout Sale', type: 'purchase_complete', sub: 'Event: purchase_complete', help: 'Type: purchase_complete' },
+                           { label: 'Simulate Home Landing', type: 'pageview', sub: 'Event: pageview | /home' },
+                           { label: 'Enter Pricing Journey', type: 'view_pricing', sub: 'Event: pageview | /pricing' },
+                           { label: 'Trigger Signup Modal', type: 'signup_start', sub: 'Event: signup_start' },
+                           { label: 'Confirm Checkout Sale', type: 'purchase_complete', sub: 'Event: purchase_complete' },
                          ].map(t => (
-                           <div key={t.label} className="relative group/sim">
-                             <button onClick={() => quickSend(t.type)} className={`w-full flex items-center justify-between p-5 border-2 rounded-2xl transition-all group active:scale-[0.98] text-left ${theme === 'dark' ? 'bg-slate-800 border-slate-700 hover:border-indigo-500 hover:bg-slate-750' : 'bg-slate-50 border-slate-100 hover:border-indigo-600 hover:bg-white'}`}>
-                                <div>
-                                  <span className={`text-sm font-bold block ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>{t.label}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono mt-0.5">{t.sub}</span>
-                                </div>
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${theme === 'dark' ? 'bg-slate-700 group-hover:bg-indigo-600' : 'bg-slate-200 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 5l7 7-7 7" /></svg>
-                                </div>
-                             </button>
-                             <div className="absolute top-1/2 left-full ml-4 -translate-y-1/2 opacity-0 invisible group-hover/sim:opacity-100 group-hover/sim:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl">
-                               {t.help}
-                               <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900"></div>
-                             </div>
-                           </div>
+                           <button key={t.label} onClick={() => quickSend(t.type)} className={`w-full flex items-center justify-between p-5 border-2 rounded-2xl transition-all group active:scale-[0.98] text-left ${theme === 'dark' ? 'bg-slate-800 border-slate-700 hover:border-indigo-500 hover:bg-slate-750' : 'bg-slate-50 border-slate-100 hover:border-indigo-600 hover:bg-white'}`}>
+                              <div>
+                                <span className={`text-sm font-bold block ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>{t.label}</span>
+                                <span className="text-[10px] text-slate-400 font-mono mt-0.5">{t.sub}</span>
+                              </div>
+                           </button>
                          ))}
                       </div>
                     </div>
                     <div className={`p-10 rounded-3xl border transition-colors flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        <div className="p-3 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                        </div>
-                        Payload Dispatch
-                      </h3>
+                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Payload Dispatch</h3>
                       <div className="flex-1 flex flex-col group/payload relative">
                         <textarea 
                           value={customJson} onChange={(e) => setCustomJson(e.target.value)}
                           className={`w-full font-mono text-[11px] p-6 rounded-2xl border-4 min-h-[180px] mb-6 outline-none shadow-inner transition-colors ${theme === 'dark' ? 'bg-slate-950 text-indigo-400 border-slate-800 focus:ring-indigo-500/20' : 'bg-slate-900 text-indigo-300 border-slate-800 focus:ring-indigo-100'}`}
                         />
                         <button onClick={() => sendSimulatedEvent()} className={`w-full py-5 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 ${theme === 'dark' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-black'}`}>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                           Transmit Payload
                         </button>
-                        <div className="absolute bottom-full left-0 mb-3 w-48 p-2 bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg opacity-0 invisible group-hover/payload:opacity-100 group-hover/payload:visible transition-all z-20 text-center border border-white/5">
-                            Send custom event JSON
-                            <div className="absolute top-full left-8 border-8 border-transparent border-t-slate-800"></div>
-                        </div>
                       </div>
                     </div>
                  </div>
@@ -736,7 +675,6 @@ const App: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
                <div className={`p-12 rounded-3xl border transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <h2 className={`text-2xl font-bold mb-2 tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Receiver Implementation</h2>
-                  <p className="text-sm text-slate-500 mb-12 font-medium">Use these optimized edge-scripts to create your own globally distributed analytics endpoint.</p>
                   <SnippetGenerator endpoint={customEndpoint} />
                </div>
             </div>
@@ -746,86 +684,20 @@ const App: React.FC = () => {
             <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                <div className={`p-10 rounded-3xl border transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <h2 className={`text-2xl font-bold mb-2 tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>AI Strategy Engine</h2>
-                  <p className="text-sm text-slate-500 mb-10 font-medium">Configure how behavioral data is processed for strategic reporting.</p>
-                  
-                  <div className="space-y-8">
-                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Intelligence Model</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div className="relative group/provider">
-                             <button 
-                                onClick={() => setAiConfig({ ...aiConfig, provider: 'gemini-builtin' })}
-                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'gemini-builtin' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4 ring-indigo-900/10' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : theme === 'dark' ? 'border-slate-800 hover:border-slate-700' : 'border-slate-100 hover:border-slate-200'}`}
-                             >
-                                <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Edge Gemini</span>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Built-in Flash Inference</span>
-                             </button>
-                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
-                                Direct integration with Google's high-speed Flash models.
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
-                             </div>
-                           </div>
-                           <div className="relative group/provider">
-                             <button 
-                                onClick={() => setAiConfig({ ...aiConfig, provider: 'custom-endpoint' })}
-                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'custom-endpoint' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4 ring-indigo-900/10' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : theme === 'dark' ? 'border-slate-800 hover:border-slate-700' : 'border-slate-100 hover:border-slate-200'}`}
-                             >
-                                <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Custom Logic</span>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Proprietary External Provider</span>
-                             </button>
-                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
-                                Route traffic insights through your own specialized API.
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
-                             </div>
-                           </div>
-                        </div>
-                     </div>
-
-                     <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
-                       {aiConfig.provider === 'gemini-builtin' ? (
-                          <div className="space-y-6">
-                             <div className="relative group/tier">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Inference Tier</label>
-                                <select 
-                                   value={aiConfig.model}
-                                   onChange={(e: any) => setAiConfig({ ...aiConfig, model: e.target.value })}
-                                   className={`w-full border-2 p-4 rounded-xl text-sm font-bold outline-none appearance-none transition-all cursor-pointer ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-4 focus:ring-indigo-900/20' : 'bg-slate-50 border-slate-100 focus:ring-4 focus:ring-indigo-100'}`}
-                                >
-                                   <option value="gemini-3-flash-preview">Flash (Balanced Velocity)</option>
-                                   <option value="gemini-3-pro-preview">Pro (Advanced Reasoning)</option>
-                                </select>
-                                <div className="absolute top-0 right-0 p-3 opacity-40 pointer-events-none">
-                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                </div>
-                                <div className="absolute bottom-full left-0 mb-3 w-56 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/tier:opacity-100 group-hover/tier:visible transition-all text-center font-bold uppercase tracking-widest border border-white/5 shadow-xl">
-                                    Higher tiers provide deeper reasoning but may increase latency.
-                                    <div className="absolute top-full left-8 border-8 border-transparent border-t-slate-800"></div>
-                                </div>
-                             </div>
-                             <div className={`p-6 rounded-2xl border flex items-center justify-between gap-6 transition-colors ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                               <div className="flex-1">
-                                 <h4 className={`text-sm font-bold mb-1 ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>Inference Auth</h4>
-                                 <p className="text-xs text-slate-500 font-medium leading-relaxed">Required for accessing restricted models.</p>
-                               </div>
-                               <button 
-                                 onClick={async () => (window as any).aistudio?.openSelectKey()}
-                                 className={`px-6 py-3 border rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 uppercase tracking-widest ${theme === 'dark' ? 'bg-slate-800 border-slate-600 text-slate-100 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
-                               >
-                                 Manage Keys
-                               </button>
-                             </div>
-                          </div>
-                       ) : (
-                          <div>
-                             <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Inference Endpoint URL</label>
-                             <input 
-                                type="text" placeholder="https://your-api.com/v1/analyze"
-                                value={aiConfig.customEndpoint || ''}
-                                onChange={(e) => setAiConfig({ ...aiConfig, customEndpoint: e.target.value })}
-                                className={`w-full border-2 p-5 rounded-2xl text-sm outline-none font-mono shadow-inner transition-colors ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-4 focus:ring-indigo-900/30' : 'bg-slate-50 border-slate-100 focus:ring-4 focus:ring-indigo-100'}`}
-                             />
-                          </div>
-                       )}
+                  <div className="space-y-8 mt-10">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button 
+                           onClick={() => setAiConfig({ ...aiConfig, provider: 'gemini-builtin' })}
+                           className={`w-full p-6 rounded-2xl border-2 text-left transition-all ${aiConfig.provider === 'gemini-builtin' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : 'border-slate-100'}`}
+                        >
+                           <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Edge Gemini</span>
+                        </button>
+                        <button 
+                           onClick={() => setAiConfig({ ...aiConfig, provider: 'custom-endpoint' })}
+                           className={`w-full p-6 rounded-2xl border-2 text-left transition-all ${aiConfig.provider === 'custom-endpoint' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : 'border-slate-100'}`}
+                        >
+                           <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Custom Logic</span>
+                        </button>
                      </div>
                   </div>
                </div>

@@ -1,5 +1,6 @@
 {
   "name": "LiteTrack Dashboard",
-  "description": "A lightweight, privacy-focused web analytics suite featuring real-time event simulation, AI-driven traffic insights, and seamless Cloudflare Worker integration.",
+  "version": "1.0.0",
+  "description": "A lightweight, privacy-focused web analytics suite featuring real-time event simulation, AI-driven traffic insights, multi-provider AI config, and dark mode support.",
   "requestFramePermissions": []
 }

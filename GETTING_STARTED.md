@@ -1,54 +1,66 @@
-# Getting Started with LiteTrack
+# 🚀 Getting Started with LiteTrack
+
+Follow this guide to establish your analytics pipeline and begin generating AI-driven insights.
+
+---
 
 ## Step 1: Receiver Setup
-- Deploy your Cloudflare Worker using the provided code in the **Deployment** tab.
-- **Crucial:** Ensure your Worker handles `OPTIONS` requests and includes `Access-Control-Allow-Origin: *` (or your specific domain) to prevent CORS errors during the dashboard handshake.
+To collect data, you need a globally distributed endpoint. We recommend **Cloudflare Workers**.
 
-## Step 2: Establish Connection
-
-### 1. The Handshake
-- Go to the **Integration** tab.
-- Paste your Cloudflare Worker URL (e.g., `https://your-worker.your-subdomain.workers.dev`).
-- Click **"Establish Connection"**. LiteTrack will send a verification ping. 
-- *If it fails:* Check your Worker logs in Cloudflare and ensure CORS headers are active.
-
-### 2. Live Verification
-- Once connected, the **Event Simulator** will unlock.
-- Open your Cloudflare Worker **Logs** or **Observability** tab in a separate window.
-- Click **"Send Test Event"** in LiteTrack.
-- You should see a "Sync Success" toast and a corresponding entry in your Cloudflare log stream.
+1. Create a new Cloudflare Worker.
+2. Use the template code found in the **Deployment** tab of the LiteTrack dashboard.
+3. **Important:** Ensure your worker includes the following headers to allow the dashboard to communicate with it:
+   - `Access-Control-Allow-Origin: *`
+   - `Access-Control-Allow-Methods: POST, OPTIONS`
+   - `Access-Control-Allow-Headers: Content-Type`
 
 ---
 
-## Step 3: Real-time Funnel Testing
+## Step 2: Establish the Handshake
 
-Funnels visualize the journey your users take. LiteTrack allows you to test these journeys without leaving the dashboard.
-
-### 1. View the Pipeline
-- Navigate to the **Funnels** tab.
-- You will see the default "Conversion Pipeline". This is calculated live from a mix of seed data and your current session events.
-
-### 2. Live Highlighting (The "Ping" Test)
-To verify your funnel logic is working:
-- Go to the **Integration** tab.
-- Find the **"Funnel Triggers"** list.
-- Click **"3. Started Signup"**.
-- Immediately switch to the **Funnels** tab.
-- **The Result:** You will see a **green pinging dot** next to the "Started Signup" step, and the user count will have incremented. This confirms that LiteTrack correctly parsed your incoming event into the conversion model.
-
-### 3. Funnel Rules
-The default funnel uses these logic rules:
-- **Visited Home**: `path` is `/home`.
-- **Viewed Pricing**: `path` is `/pricing`.
-- **Started Signup**: `type` is `signup_start`.
-- **Completed**: `type` is `purchase_complete`.
+1. Navigate to the **Integration** tab in your dashboard.
+2. Enter your Worker URL into the **Handshake Center**.
+3. Click **"Establish Connection"**.
+4. **Success Check:** You should see a green "Receiver Active" badge in the header. If you see a red error, check your Worker's CORS settings.
 
 ---
 
-## Step 4: AI Insights
-- After simulating several events, click **"Generate AI Insights"** in the header.
-- **Gemini 3 Flash** will analyze the balance between your simulated traffic and seed data to provide performance scores and engagement suggestions.
+## Step 3: Simulation & Verification
+
+Verify your pipeline without waiting for organic traffic.
+
+1. **Quick Simulation:** Use the buttons in the **Integration** tab to trigger common paths (Home -> Pricing -> Signup).
+2. **Payload Dispatch:** Use the JSON editor to send custom metadata. Try adding properties like `loadTime` or `tags` to see how the dashboard handles them.
+3. **Live Stream:** Watch the **Live Stream** window on the Overview tab to see events arrive within milliseconds.
 
 ---
 
-*LiteTrack ensures your analytics data remains lightweight, edge-optimized, and entirely under your control.*
+## Step 4: AI Insights & Configuration
+
+LiteTrack uses Google Gemini to turn raw events into strategy.
+
+1. **API Key:** Click the **"Manage Keys"** button in the **Settings** tab. This opens the AI Studio selector. Select a project with billing enabled to access Gemini 3 models.
+2. **Analysis:** Click **"AI Traffic Analysis"** in the top right of the dashboard.
+3. **Model Selection:** Use the **AI Strategy Engine** in Settings to switch between:
+   - **Flash:** Fast, cost-effective for general summaries.
+   - **Pro:** High-reasoning for complex conversion drop-off analysis.
+
+---
+
+## ❓ Troubleshooting
+
+### CORS Errors
+If the dashboard cannot "Verify" your endpoint:
+- Check that your Worker handles the `OPTIONS` preflight request.
+- Ensure the URL starts with `https://`.
+
+### AI Analysis Failing
+- Ensure you have selected a valid API key in the **Settings** tab.
+- Check that your traffic data contains at least a few events (simulation counts!).
+
+### Theme Persistence
+- LiteTrack uses `localStorage` to save your theme. If you clear your browser data, it will default back to Light mode.
+
+---
+
+[Back to README.md](./README.md)
