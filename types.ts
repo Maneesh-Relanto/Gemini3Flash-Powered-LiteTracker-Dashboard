@@ -1,7 +1,6 @@
 
 export interface AnalyticsEvent {
   id: string;
-  // Broadened to string to allow custom event types like 'signup_start' and 'purchase_complete' from the simulator
   type: string;
   path: string;
   referrer: string;
@@ -9,7 +8,6 @@ export interface AnalyticsEvent {
   metadata: {
     browser: string;
     os: string;
-    // Broadened to string to support various device identifiers without type overlap issues
     device: string;
     duration?: number;
   };
@@ -37,4 +35,12 @@ export interface FunnelStep {
 export interface FunnelReport {
   name: string;
   steps: FunnelStep[];
+}
+
+export type AIProviderType = 'gemini-builtin' | 'custom-endpoint';
+
+export interface AIConfig {
+  provider: AIProviderType;
+  model: 'gemini-3-flash-preview' | 'gemini-3-pro-preview';
+  customEndpoint?: string;
 }

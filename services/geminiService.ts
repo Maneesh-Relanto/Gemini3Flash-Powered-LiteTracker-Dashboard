@@ -2,9 +2,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalyticsEvent, InsightReport } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export async function generateAnalyticsInsights(events: AnalyticsEvent[]): Promise<InsightReport> {
+  // Always initialize GoogleGenAI within the function to ensure the most current API key is used
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   const summaryData = {
     totalEvents: events.length,
     topPages: events.reduce((acc: any, e) => {
