@@ -30,6 +30,8 @@ export interface FunnelStep {
   count: number;
   dropoff: number;
   conversion: number;
+  // Added stepKey for UI tracking and active state identification
+  stepKey: string;
 }
 
 export interface FunnelReport {
