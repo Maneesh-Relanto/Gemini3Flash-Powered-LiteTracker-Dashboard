@@ -2,25 +2,29 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalyticsEvent, InsightReport, AIConfig } from "../types";
 
-/**
- * Interface for any AI provider implementation
- */
 export interface AIProvider {
   generateInsights(events: AnalyticsEvent[], config: AIConfig): Promise<InsightReport>;
 }
 
-/**
- * Gemini Implementation using @google/genai
- */
 class GeminiProvider implements AIProvider {
   async generateInsights(events: AnalyticsEvent[], config: AIConfig): Promise<InsightReport> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const summaryData = this.prepareSummary(events);
     
-    const prompt = `Analyze this website traffic and return a JSON report:
+    const prompt = `Analyze this website traffic data for patterns and potential technical issues:
     ${JSON.stringify(summaryData)}
     
-    Format: { "summary": string, "suggestions": string[], "performanceScore": number }`;
+    Return a JSON report including:
+    1. A summary and suggestions.
+    2. A performance score (0-100).
+    3. An "anomalies" array if you detect issues like high load times (>800ms) or low conversion (<2%).
+    
+    Format: { 
+      "summary": string, 
+      "suggestions": string[], 
+      "performanceScore": number, 
+      "anomalies": [{ "id": string, "level": "info"|"warning"|"critical", "title": string, "message": string }] 
+    }`;
 
     const response = await ai.models.generateContent({
       model: config.model,
@@ -32,20 +36,35 @@ class GeminiProvider implements AIProvider {
           properties: {
             summary: { type: Type.STRING },
             suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            performanceScore: { type: Type.NUMBER }
+            performanceScore: { type: Type.NUMBER },
+            anomalies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  level: { type: Type.STRING },
+                  title: { type: Type.STRING },
+                  message: { type: Type.STRING }
+                }
+              }
+            }
           },
           required: ["summary", "suggestions", "performanceScore"]
         }
       }
     });
 
-    return JSON.parse(response.text || '{}');
+    const text = response.text || '{}';
+    return JSON.parse(text);
   }
 
   private prepareSummary(events: AnalyticsEvent[]) {
     return {
       total: events.length,
-      pages: events.slice(-100).reduce((acc: any, e) => {
+      avgLoadTime: events.reduce((acc, e) => acc + (e.metadata.loadTime || 0), 0) / events.length,
+      conversionRate: (events.filter(e => e.type === 'purchase_complete').length / events.length) * 100,
+      pages: events.slice(-50).reduce((acc: any, e) => {
         acc[e.path] = (acc[e.path] || 0) + 1;
         return acc;
       }, {})
@@ -53,22 +72,14 @@ class GeminiProvider implements AIProvider {
   }
 }
 
-/**
- * Generic JSON Endpoint Implementation
- */
 class CustomEndpointProvider implements AIProvider {
   async generateInsights(events: AnalyticsEvent[], config: AIConfig): Promise<InsightReport> {
     if (!config.customEndpoint) throw new Error("No custom endpoint configured");
-    
     const response = await fetch(config.customEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        events: events.slice(-50), // Send recent sample
-        timestamp: Date.now()
-      })
+      body: JSON.stringify({ events: events.slice(-50), timestamp: Date.now() })
     });
-
     if (!response.ok) throw new Error(`External API error: ${response.status}`);
     return await response.json();
   }
@@ -77,16 +88,13 @@ class CustomEndpointProvider implements AIProvider {
 export const aiManager = {
   async getInsights(events: AnalyticsEvent[], config: AIConfig): Promise<InsightReport> {
     try {
-      const provider = config.provider === 'gemini-builtin' 
-        ? new GeminiProvider() 
-        : new CustomEndpointProvider();
-        
+      const provider = config.provider === 'gemini-builtin' ? new GeminiProvider() : new CustomEndpointProvider();
       return await provider.generateInsights(events, config);
     } catch (error) {
       console.error("AI Insight Error:", error);
       return {
-        summary: "The AI engine is currently unavailable or misconfigured.",
-        suggestions: ["Check your API settings in the Settings tab.", "Ensure your network allows outbound AI requests."],
+        summary: "Inference engine paused. Check your connection.",
+        suggestions: ["Verify API Key.", "Check firewall."],
         performanceScore: 0
       };
     }

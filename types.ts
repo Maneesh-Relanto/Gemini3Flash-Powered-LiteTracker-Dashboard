@@ -9,21 +9,26 @@ export interface AnalyticsEvent {
     browser: string;
     os: string;
     device: string;
+    country: string; // New: Simulated geo-location
+    sessionId: string; // New: For retention/cohort tracking
     duration?: number;
-    loadTime?: number; // Time in ms for the page to become interactive
+    loadTime?: number;
   };
 }
 
-export interface DailyStats {
-  date: string;
-  views: number;
-  uniques: number;
+export interface Alert {
+  id: string;
+  level: 'info' | 'warning' | 'critical';
+  title: string;
+  message: string;
+  timestamp: number;
 }
 
 export interface InsightReport {
   summary: string;
   suggestions: string[];
   performanceScore: number;
+  anomalies?: Alert[]; // New: AI-detected anomalies
 }
 
 export interface FunnelStep {
