@@ -15,6 +15,7 @@ interface SentLog {
   timestamp: string;
   status: 'success' | 'error' | 'pending';
   payload?: any;
+  errorMessage?: string;
 }
 
 const SCENARIOS = {
@@ -45,12 +46,18 @@ const App: React.FC = () => {
   const [insights, setInsights] = useState<InsightReport | null>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'funnels' | 'install' | 'deploy'>('overview');
+  const [lastMatchedStep, setLastMatchedStep] = useState<string | null>(null);
   
   const [customEndpoint, setCustomEndpoint] = useState(() => {
     return localStorage.getItem('litetrack_endpoint') || '';
   });
 
+  const [isVerified, setIsVerified] = useState(() => {
+    return localStorage.getItem('litetrack_verified') === 'true';
+  });
+
   const [testStatus, setTestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sentLogs, setSentLogs] = useState<SentLog[]>([]);
   
   const [simMode, setSimMode] = useState<'quick' | 'advanced'>('quick');
@@ -58,13 +65,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('litetrack_endpoint', customEndpoint);
-  }, [customEndpoint]);
+    localStorage.setItem('litetrack_verified', String(isVerified));
+  }, [customEndpoint, isVerified]);
 
   useEffect(() => {
     const initialEvents: AnalyticsEvent[] = [];
     const now = Date.now();
     
-    // Create a realistic base distribution for the funnel
     const seedFunnels = (count: number, path: string, type: any) => {
       for (let i = 0; i < count; i++) {
         initialEvents.push({
@@ -112,24 +119,11 @@ const App: React.FC = () => {
   }, [events]);
 
   const funnelData: FunnelReport = useMemo(() => {
-    // Dynamically calculate funnel steps based on actual events
     const steps = [
-      { 
-        label: 'Visited Home', 
-        count: events.filter(e => e.path === '/home').length 
-      },
-      { 
-        label: 'Viewed Pricing', 
-        count: events.filter(e => e.path === '/pricing' || e.type.includes('pricing')).length 
-      },
-      { 
-        label: 'Started Signup', 
-        count: events.filter(e => e.path === '/signup' || e.type === 'signup_start').length 
-      },
-      { 
-        label: 'Completed', 
-        count: events.filter(e => e.path === '/checkout/success' || e.type === 'purchase_complete').length 
-      }
+      { label: 'Visited Home', count: events.filter(e => e.path === '/home').length, stepKey: 'home' },
+      { label: 'Viewed Pricing', count: events.filter(e => e.path === '/pricing' || e.type.includes('pricing')).length, stepKey: 'pricing' },
+      { label: 'Started Signup', count: events.filter(e => e.path === '/signup' || e.type === 'signup_start').length, stepKey: 'signup' },
+      { label: 'Completed', count: events.filter(e => e.path === '/checkout/success' || e.type === 'purchase_complete').length, stepKey: 'completed' }
     ];
 
     return {
@@ -146,11 +140,58 @@ const App: React.FC = () => {
     };
   }, [events]);
 
-  const sendSimulatedEvent = async (payloadOverride?: any) => {
+  const verifyConnection = async () => {
     if (!customEndpoint) {
-      alert("Please enter your Worker URL first!");
+      setErrorMessage("Please enter a valid URL.");
       return;
     }
+    
+    setTestStatus('sending');
+    setErrorMessage(null);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(customEndpoint, {
+        method: 'POST',
+        mode: 'cors',
+        body: JSON.stringify({ event: 'ping', test: true }),
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        setIsVerified(true);
+        setTestStatus('success');
+        setTimeout(() => setTestStatus('idle'), 2000);
+      } else {
+        throw new Error(`Worker returned status ${response.status}`);
+      }
+    } catch (e: any) {
+      setTestStatus('error');
+      if (e.name === 'AbortError') {
+        setErrorMessage("Request timed out. Check your worker's speed or URL.");
+      } else if (e.message.includes('Failed to fetch')) {
+        setErrorMessage("Connection refused. Is CORS enabled in your worker?");
+      } else {
+        setErrorMessage(e.message || "Unknown connection error.");
+      }
+    }
+  };
+
+  const disconnectWorker = () => {
+    setIsVerified(false);
+    setCustomEndpoint('');
+    setSentLogs([]);
+    localStorage.removeItem('litetrack_verified');
+    localStorage.removeItem('litetrack_endpoint');
+  };
+
+  const sendSimulatedEvent = async (payloadOverride?: any) => {
+    if (!isVerified) return;
 
     const logId = Math.random().toString(36).substr(2, 5);
     setTestStatus('sending');
@@ -160,7 +201,7 @@ const App: React.FC = () => {
       try {
         finalPayload = JSON.parse(customJson);
       } catch (e) {
-        alert("Invalid JSON in Advanced Designer");
+        setErrorMessage("Invalid JSON in Advanced Designer");
         setTestStatus('error');
         return;
       }
@@ -175,10 +216,10 @@ const App: React.FC = () => {
     };
     setSentLogs(prev => [newLog, ...prev].slice(0, 10));
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       const response = await fetch(customEndpoint, {
         method: 'POST',
         mode: 'cors',
@@ -193,7 +234,6 @@ const App: React.FC = () => {
         setTestStatus('success');
         setSentLogs(prev => prev.map(l => l.id === logId ? { ...l, status: 'success' } : l));
         
-        // Add to local state so charts update immediately
         const localEvent: AnalyticsEvent = {
           id: logId,
           type: finalPayload.event || 'click',
@@ -208,17 +248,21 @@ const App: React.FC = () => {
         };
         setEvents(prev => [...prev, localEvent]);
 
-        setTimeout(() => setTestStatus('idle'), 3000);
+        // Funnel Activity Highlighting
+        if (finalPayload.path === '/home') setLastMatchedStep('home');
+        else if (finalPayload.path === '/pricing') setLastMatchedStep('pricing');
+        else if (finalPayload.event === 'signup_start') setLastMatchedStep('signup');
+        else if (finalPayload.event === 'purchase_complete') setLastMatchedStep('completed');
+        
+        setTimeout(() => setLastMatchedStep(null), 3000);
+        setTimeout(() => setTestStatus('idle'), 2000);
       } else {
-        setTestStatus('error');
-        setSentLogs(prev => prev.map(l => l.id === logId ? { ...l, status: 'error' } : l));
-        setTimeout(() => setTestStatus('idle'), 3000);
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (e: any) {
-      clearTimeout(timeoutId);
       setTestStatus('error');
-      setSentLogs(prev => prev.map(l => l.id === logId ? { ...l, status: 'error' } : l));
-      setTimeout(() => setTestStatus('idle'), 4000);
+      setSentLogs(prev => prev.map(l => l.id === logId ? { ...l, status: 'error', errorMessage: e.message } : l));
+      setTimeout(() => setTestStatus('idle'), 3000);
     }
   };
 
@@ -226,6 +270,7 @@ const App: React.FC = () => {
     let path = '/simulator';
     if (type === 'pageview') path = '/home';
     if (type === 'view_pricing') { type = 'pageview'; path = '/pricing'; }
+    if (type === 'signup_start') path = '/signup';
     if (type === 'purchase_complete') path = '/checkout/success';
 
     sendSimulatedEvent({
@@ -310,7 +355,7 @@ const App: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard label="Live Connection" value={customEndpoint ? "CONNECTED" : "OFFLINE"} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
+              <StatCard label="Live Connection" value={isVerified ? "CONNECTED" : "OFFLINE"} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
               <StatCard label="Total Events" value={events.length} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>} />
               <StatCard label="Conversion" value={`${funnelData.steps[funnelData.steps.length-1].conversion}%`} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} />
               <StatCard label="Last Status" value={sentLogs[0]?.status || "Idle"} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
@@ -378,7 +423,22 @@ const App: React.FC = () => {
 
         {activeTab === 'funnels' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-4">
-             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative">
+                {!isVerified && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 rounded-2xl flex items-center justify-center p-8 text-center">
+                    <div className="max-w-md">
+                      <h3 className="text-lg font-bold text-slate-800 mb-2">Live Funnel Disabled</h3>
+                      <p className="text-sm text-slate-500 mb-6">Connect a Cloudflare Worker in the Integration tab to start tracking live conversion data.</p>
+                      <button 
+                        onClick={() => setActiveTab('install')}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm"
+                      >
+                        Go to Integration
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
                   <div>
                     <h2 className="text-xl font-bold text-slate-800">Conversion Funnel</h2>
@@ -391,16 +451,21 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                  {funnelData.steps.map((step, idx) => (
+                  {funnelData.steps.map((step: any, idx) => (
                     <div key={step.label} className="relative">
                       <div className="flex items-center gap-6">
                         <div className="w-48 text-right hidden md:block">
-                           <span className="text-sm font-bold text-slate-700">{step.label}</span>
+                           <div className="flex items-center justify-end gap-2">
+                             {lastMatchedStep === step.stepKey && (
+                               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                             )}
+                             <span className="text-sm font-bold text-slate-700">{step.label}</span>
+                           </div>
                            <p className="text-xs text-slate-400 uppercase tracking-widest">{step.count} users</p>
                         </div>
                         <div className="flex-1 bg-slate-50 h-16 rounded-xl border border-slate-100 relative overflow-hidden">
                            <div 
-                              className="h-full bg-indigo-500 transition-all duration-1000 ease-out flex items-center px-4"
+                              className={`h-full bg-indigo-500 transition-all duration-1000 ease-out flex items-center px-4 ${lastMatchedStep === step.stepKey ? 'brightness-125' : ''}`}
                               style={{ width: `${(step.count / (funnelData.steps[0].count || 1)) * 100}%` }}
                            >
                               <span className="text-white font-bold text-xs whitespace-nowrap md:hidden">{step.label}</span>
@@ -421,33 +486,6 @@ const App: React.FC = () => {
                       )}
                     </div>
                   ))}
-                </div>
-             </div>
-
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-slate-900 rounded-2xl p-8 text-white border border-slate-800">
-                  <h3 className="font-bold mb-4 flex items-center gap-2 text-indigo-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    Pain Points Identified
-                  </h3>
-                  <div className="space-y-4">
-                     <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                        <p className="text-xs text-slate-400 font-bold uppercase mb-1">Dynamic Analysis</p>
-                        <p className="text-sm text-slate-200">The funnel is tracking {events.length} total events. Every simulated click updates these metrics.</p>
-                     </div>
-                     <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                        <p className="text-xs text-slate-400 font-bold uppercase mb-1">Real-time Check</p>
-                        <p className="text-sm text-slate-200">Go to "Integration" and send a "Complete Purchase" action to see the final step increase.</p>
-                     </div>
-                  </div>
-                </div>
-                
-                <div className="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-100">
-                   <h3 className="font-bold mb-4">Improve Retention</h3>
-                   <p className="text-indigo-100 text-sm mb-6 leading-relaxed">Funnels help you find where users get stuck. LiteTrack uses privacy-preserving session hashing to calculate these without individual tracking.</p>
-                   <button className="px-6 py-2.5 bg-white text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all">
-                      Create Custom Funnel
-                   </button>
                 </div>
              </div>
           </div>
@@ -501,115 +539,161 @@ const App: React.FC = () => {
 
         {activeTab === 'install' && (
           <div className="max-w-7xl space-y-8 animate-in slide-in-from-bottom-4">
-            <div className="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-100">
-                <h2 className="text-xl font-bold mb-2">Connect Your Worker</h2>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input 
-                    type="text" 
-                    placeholder="https://your-worker.your-subdomain.workers.dev"
-                    value={customEndpoint}
-                    onChange={(e) => setCustomEndpoint(e.target.value)}
-                    className="flex-1 bg-indigo-700 border-indigo-500 text-white placeholder-indigo-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
-                  />
-                  <button 
-                    onClick={() => quickSend('pageview')}
-                    className="px-8 py-3 bg-white text-indigo-600 rounded-xl font-bold transition-all hover:bg-indigo-50"
-                  >
-                    Immediate Ping
-                  </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-800">Event Simulator</h3>
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button onClick={() => setSimMode('quick')} className={`px-3 py-1 text-xs font-bold rounded ${simMode === 'quick' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Quick</button>
-                    <button onClick={() => setSimMode('advanced')} className={`px-3 py-1 text-xs font-bold rounded ${simMode === 'advanced' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Advanced</button>
-                  </div>
-                </div>
-
-                {simMode === 'quick' ? (
-                  <div className="grid grid-cols-1 gap-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Funnel Triggers</p>
-                    <button onClick={() => quickSend('pageview')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
-                        <span className="text-sm font-bold text-slate-700">1. Visited Home (/home)</span>
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                        </div>
-                    </button>
-                    <button onClick={() => quickSend('view_pricing')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
-                        <span className="text-sm font-bold text-slate-700">2. Viewed Pricing (/pricing)</span>
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                        </div>
-                    </button>
-                    <button onClick={() => quickSend('signup_start')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
-                        <span className="text-sm font-bold text-slate-700">3. Started Signup</span>
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                        </div>
-                    </button>
-                    <button onClick={() => quickSend('purchase_complete')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
-                        <span className="text-sm font-bold text-slate-700">4. Complete Journey</span>
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                        </div>
-                    </button>
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Templates</p>
-                       <div className="flex flex-wrap gap-2">
-                          <button onClick={()=>applyTemplate('ecommerce')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">E-commerce</button>
-                          <button onClick={()=>applyTemplate('saas')} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold border border-violet-100">SaaS Metrics</button>
-                          <button onClick={()=>applyTemplate('error')} className="px-3 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold border border-rose-100">Error State</button>
+            {!isVerified ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 max-w-2xl mx-auto shadow-xl">
+                 <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                 </div>
+                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Connect Your Pipeline</h2>
+                 <p className="text-slate-500 mb-8 leading-relaxed">Enter your Cloudflare Worker URL below. LiteTrack will send a verification ping to ensure the endpoint is active and CORS-ready.</p>
+                 
+                 <div className="space-y-4">
+                    <div>
+                       <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Worker URL</label>
+                       <input 
+                          type="text" 
+                          placeholder="https://your-worker.your-subdomain.workers.dev"
+                          value={customEndpoint}
+                          onChange={(e) => setCustomEndpoint(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       />
+                    </div>
+                    
+                    {errorMessage && (
+                       <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-sm flex items-start gap-3 animate-in fade-in">
+                          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                          <span>{errorMessage}</span>
                        </div>
+                    )}
+
+                    <button 
+                       onClick={verifyConnection}
+                       disabled={testStatus === 'sending'}
+                       className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                       {testStatus === 'sending' ? 'Verifying...' : 'Establish Connection'}
+                    </button>
+                 </div>
+              </div>
+            ) : (
+              <div className="space-y-8 animate-in zoom-in duration-300">
+                <div className="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                      <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                         <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"></div>
+                         Worker Online & Connected
+                      </h2>
+                      <p className="text-indigo-100 text-sm opacity-80">{customEndpoint}</p>
+                    </div>
+                    <div className="flex gap-3">
+                       <button 
+                          onClick={() => quickSend('pageview')}
+                          className="px-6 py-2.5 bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-400 transition-all border border-indigo-400"
+                       >
+                          Send Test Event
+                       </button>
+                       <button 
+                          onClick={disconnectWorker}
+                          className="px-6 py-2.5 bg-white text-indigo-600 rounded-xl font-bold transition-all hover:bg-indigo-50"
+                       >
+                          Disconnect
+                       </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-slate-800">Event Simulator</h3>
+                      <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button onClick={() => setSimMode('quick')} className={`px-3 py-1 text-xs font-bold rounded ${simMode === 'quick' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Quick</button>
+                        <button onClick={() => setSimMode('advanced')} className={`px-3 py-1 text-xs font-bold rounded ${simMode === 'advanced' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Advanced</button>
+                      </div>
+                    </div>
+
+                    {simMode === 'quick' ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Funnel Triggers</p>
+                        <button onClick={() => quickSend('pageview')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
+                            <span className="text-sm font-bold text-slate-700">1. Visited Home (/home)</span>
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                            </div>
+                        </button>
+                        <button onClick={() => quickSend('view_pricing')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
+                            <span className="text-sm font-bold text-slate-700">2. Viewed Pricing (/pricing)</span>
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                            </div>
+                        </button>
+                        <button onClick={() => quickSend('signup_start')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
+                            <span className="text-sm font-bold text-slate-700">3. Started Signup</span>
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                            </div>
+                        </button>
+                        <button onClick={() => quickSend('purchase_complete')} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all group">
+                            <span className="text-sm font-bold text-slate-700">4. Complete Journey</span>
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                            </div>
+                        </button>
+                        <div className="mt-4 pt-4 border-t border-slate-100">
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Templates</p>
+                           <div className="flex flex-wrap gap-2">
+                              <button onClick={()=>applyTemplate('ecommerce')} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">E-commerce</button>
+                              <button onClick={()=>applyTemplate('saas')} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold border border-violet-100">SaaS Metrics</button>
+                              <button onClick={()=>applyTemplate('error')} className="px-3 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold border border-rose-100">Error State</button>
+                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <textarea 
+                          value={customJson}
+                          onChange={(e) => setCustomJson(e.target.value)}
+                          className="flex-1 bg-slate-900 text-indigo-300 font-mono text-[11px] p-4 rounded-xl border border-slate-800 focus:ring-2 focus:ring-indigo-500 min-h-[250px] mb-4"
+                        />
+                        <button onClick={() => sendSimulatedEvent()} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all">
+                          Transmit Custom Event
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-800 text-white">
+                    <h3 className="font-bold mb-6 flex items-center justify-between">
+                      Live Destination Log
+                      <div className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] rounded border border-emerald-500/20 uppercase">Streaming</div>
+                    </h3>
+                    <div className="space-y-3 font-mono">
+                      {sentLogs.length === 0 ? (
+                        <div className="text-center py-10 text-slate-600 text-sm italic italic">Waiting for traffic...</div>
+                      ) : (
+                        sentLogs.map(log => (
+                          <div key={log.id} className="flex flex-col p-3 bg-slate-950 rounded-lg border border-slate-800 animate-in fade-in">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${log.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : log.status === 'pending' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                {log.status === 'success' ? '200 OK' : log.status === 'pending' ? 'PENDING' : 'FAILED'}
+                              </span>
+                              <span className="text-[9px] text-slate-600">{log.timestamp}</span>
+                            </div>
+                            <span className="text-[11px] text-indigo-400">{log.type}</span>
+                            {log.errorMessage && <span className="text-[9px] text-rose-400 mt-1">{log.errorMessage}</span>}
+                            {!log.errorMessage && <div className="text-[10px] text-slate-500 truncate mt-1">{log.payload?.path}</div>}
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="flex flex-col h-full">
-                    <textarea 
-                      value={customJson}
-                      onChange={(e) => setCustomJson(e.target.value)}
-                      className="flex-1 bg-slate-900 text-indigo-300 font-mono text-[11px] p-4 rounded-xl border border-slate-800 focus:ring-2 focus:ring-indigo-500 min-h-[200px] mb-4"
-                    />
-                    <button onClick={() => sendSimulatedEvent()} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all">
-                      Transmit Custom Event
-                    </button>
-                  </div>
-                )}
-              </div>
+                </div>
 
-              <div className="bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-800 text-white">
-                <h3 className="font-bold mb-6 flex items-center justify-between">
-                  Live Destination Log
-                  <div className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] rounded border border-emerald-500/20 uppercase">Streaming</div>
-                </h3>
-                <div className="space-y-3 font-mono">
-                  {sentLogs.length === 0 ? (
-                    <div className="text-center py-10 text-slate-600 text-sm italic italic">Waiting for traffic...</div>
-                  ) : (
-                    sentLogs.map(log => (
-                      <div key={log.id} className="flex flex-col p-3 bg-slate-950 rounded-lg border border-slate-800 animate-in fade-in">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${log.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                            {log.status === 'success' ? '200 OK' : 'FAILED'}
-                          </span>
-                          <span className="text-[9px] text-slate-600">{log.timestamp}</span>
-                        </div>
-                        <span className="text-[11px] text-indigo-400">{log.type}</span>
-                        <div className="text-[10px] text-slate-500 truncate mt-1">{log.payload?.path}</div>
-                      </div>
-                    ))
-                  )}
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                  <h2 className="text-2xl font-bold mb-4 text-slate-800">Integration Snippets</h2>
+                  <SnippetGenerator endpoint={customEndpoint} />
                 </div>
               </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-              <h2 className="text-2xl font-bold mb-4 text-slate-800">Integration Snippets</h2>
-              <SnippetGenerator endpoint={customEndpoint} />
-            </div>
+            )}
           </div>
         )}
 

@@ -1,5 +1,5 @@
 {
-  "name": "LiteTrack",
+  "name": "LiteTrack Dashboard",
   "description": "A lightweight, privacy-focused web analytics suite featuring real-time event simulation, AI-driven traffic insights, and seamless Cloudflare Worker integration.",
   "requestFramePermissions": []
 }
