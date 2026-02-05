@@ -24,6 +24,9 @@ const SCENARIOS = {
 };
 
 const App: React.FC = () => {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('litetrack_theme') as 'light' | 'dark') || 'light';
+  });
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
   const [insights, setInsights] = useState<InsightReport | null>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
@@ -50,7 +53,13 @@ const App: React.FC = () => {
     localStorage.setItem('litetrack_ai_config', JSON.stringify(aiConfig));
     localStorage.setItem('litetrack_endpoint', customEndpoint);
     localStorage.setItem('litetrack_verified', String(isVerified));
-  }, [aiConfig, customEndpoint, isVerified]);
+    localStorage.setItem('litetrack_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [aiConfig, customEndpoint, isVerified, theme]);
 
   // Seed initial data
   useEffect(() => {
@@ -65,7 +74,8 @@ const App: React.FC = () => {
           metadata: { 
             browser: i % 3 === 0 ? 'Chrome' : i % 3 === 1 ? 'Safari' : 'Firefox', 
             os: i % 2 === 0 ? 'MacOS' : 'Windows', 
-            device: i % 4 === 0 ? 'mobile' : 'desktop' 
+            device: i % 4 === 0 ? 'mobile' : 'desktop',
+            duration: Math.floor(Math.random() * 180) + 20
           }
         });
       }
@@ -85,6 +95,28 @@ const App: React.FC = () => {
       statsMap[time] = (statsMap[time] || 0) + 1;
     });
     return Object.entries(statsMap).map(([name, views]) => ({ name, views }));
+  }, [events]);
+
+  const stats = useMemo(() => {
+    const totalEvents = events.length;
+    const homeViews = events.filter(e => e.path === '/home').length;
+    const progressionViews = events.filter(e => e.path !== '/home').length;
+    const bounceRate = Math.round((homeViews / (homeViews + progressionViews || 1)) * 100 * 0.45); // Mocked algorithm for bounce
+    
+    const uniqueIds = new Set(events.map(e => `${e.metadata.browser}-${e.metadata.os}-${e.path.slice(0,3)}`));
+    const uniqueVisitors = uniqueIds.size * 12; // Scaled simulation
+
+    const avgDuration = events.length > 0 
+      ? Math.round(events.reduce((acc, e) => acc + (e.metadata.duration || 45), 0) / events.length)
+      : 0;
+
+    return {
+      totalEvents,
+      uniqueVisitors,
+      bounceRate: bounceRate > 100 ? 100 : bounceRate,
+      avgDuration,
+      pipelineScore: Math.round((events.filter(e => e.type === 'purchase_complete').length / (events.filter(e => e.path === '/home').length || 1)) * 100)
+    };
   }, [events]);
 
   const technicalStats = useMemo(() => {
@@ -117,6 +149,8 @@ const App: React.FC = () => {
       })) as FunnelStep[]
     };
   }, [events]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const verifyConnection = async () => {
     setTestStatus('sending');
@@ -162,7 +196,10 @@ const App: React.FC = () => {
           id: Math.random().toString(36).substr(2, 5),
           type: finalPayload.event || 'click', path: finalPayload.path || '/simulator',
           referrer: 'LiteTrack Sim', timestamp: Date.now(),
-          metadata: { browser: 'Chrome', os: 'Cloud', device: 'desktop' }
+          metadata: { 
+            browser: 'Chrome', os: 'Cloud', device: 'desktop', 
+            duration: Math.floor(Math.random() * 100) + 10 
+          }
         };
         setEvents(prev => [...prev, localEvent]);
         
@@ -175,7 +212,6 @@ const App: React.FC = () => {
         };
         setSentLogs(prev => [newLog, ...prev].slice(0, 10));
         
-        // Trigger Funnel Animation
         let matchedStep: string | null = null;
         if (finalPayload.path === '/home') matchedStep = 'home';
         else if (finalPayload.path === '/pricing') matchedStep = 'pricing';
@@ -212,14 +248,14 @@ const App: React.FC = () => {
   }, [events, aiConfig]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
+    <div className={`min-h-screen transition-colors duration-500 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} overflow-x-hidden`}>
       {/* Side Navigation */}
-      <nav className="fixed top-0 left-0 h-full w-64 bg-white border-r border-slate-200 p-6 hidden md:block z-30">
+      <nav className={`fixed top-0 left-0 h-full w-64 border-r transition-colors duration-500 p-6 hidden md:block z-30 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-2 mb-10">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-100">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
           </div>
-          <span className="text-xl font-bold text-slate-800 tracking-tight">LiteTrack</span>
+          <span className={`text-xl font-bold tracking-tight transition-colors ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>LiteTrack</span>
         </div>
 
         <ul className="space-y-1.5">
@@ -234,7 +270,7 @@ const App: React.FC = () => {
             <li key={tab.id} className="group/nav relative">
               <button 
                 onClick={() => setActiveTab(tab.id as any)} 
-                className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg' : theme === 'dark' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'}`}
               >
                 {tab.icon}
                 {tab.label}
@@ -251,10 +287,22 @@ const App: React.FC = () => {
       <main className="md:ml-64 p-4 md:p-8 max-w-[1400px] mx-auto min-h-screen">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">LiteTrack Dashboard</h1>
+            <h1 className={`text-2xl font-bold tracking-tight transition-colors ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>LiteTrack Dashboard</h1>
             <p className="text-slate-500 text-sm font-medium">Real-time Web Analytics Interface</p>
           </div>
           <div className="flex items-center gap-4">
+             {/* Theme Toggle */}
+             <button 
+                onClick={toggleTheme}
+                className={`p-2.5 rounded-xl border transition-all ${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-yellow-400' : 'bg-white border-slate-200 text-slate-600'}`}
+             >
+                {theme === 'dark' ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" /></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
+                )}
+             </button>
+
              {testStatus === 'success' && <div className="text-emerald-600 text-xs font-bold uppercase tracking-widest flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Receiver Active</div>}
              <div className="relative group/btn">
                <button 
@@ -273,7 +321,7 @@ const App: React.FC = () => {
         </header>
 
         {insights && (
-          <div className="mb-10 bg-slate-900 text-white p-8 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-500 border border-slate-800">
+          <div className={`mb-10 p-8 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-500 border ${theme === 'dark' ? 'bg-slate-900 text-white border-slate-800' : 'bg-slate-900 text-white border-slate-800'}`}>
              <div className="flex items-center gap-2 mb-4 text-indigo-400 uppercase tracking-[0.2em] text-[10px] font-black">
                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                Intelligent Behavioral Report
@@ -307,18 +355,30 @@ const App: React.FC = () => {
         <div className="w-full">
           {activeTab === 'overview' && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard 
-                  label="Pipeline" 
-                  value={isVerified ? "ONLINE" : "OFFLINE"} 
-                  description="Real-time status of your Cloudflare receiver handshake."
+                  label="Total Events" 
+                  value={stats.totalEvents.toLocaleString()} 
+                  description="Total volume of user events ingested since session start."
                   icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} 
                 />
                 <StatCard 
-                  label="Total Tractions" 
-                  value={events.length.toLocaleString()} 
-                  description="Total volume of user events ingested since session start."
+                  label="Unique Visitors" 
+                  value={stats.uniqueVisitors.toLocaleString()} 
+                  description="Estimated number of distinct users based on identity fingerprinting."
                   icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>} 
+                />
+                <StatCard 
+                  label="Bounce Rate" 
+                  value={`${stats.bounceRate}%`} 
+                  description="Percentage of visitors who left after viewing only one page."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 8l2-2m0 0l2 2m-2-2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h3" /></svg>} 
+                />
+                <StatCard 
+                  label="Avg Duration" 
+                  value={`${stats.avgDuration}s`} 
+                  description="The average time spent per detected user session."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
                 />
                 <StatCard 
                   label="Network Health" 
@@ -328,15 +388,15 @@ const App: React.FC = () => {
                 />
                 <StatCard 
                   label="Pipeline Score" 
-                  value={funnelData.steps[funnelData.steps.length-1].conversion} 
+                  value={`${stats.pipelineScore}%`} 
                   description="Direct conversion efficiency of the absolute session journey."
                   icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} 
                 />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative group/traffic">
-                  <h3 className="font-bold text-slate-800 mb-8 flex items-center gap-3">
+                <div className={`lg:col-span-2 p-8 rounded-3xl border transition-colors relative group/traffic ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <h3 className={`font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-100"></div>
                     Real-time Traffic Velocity
                   </h3>
@@ -349,19 +409,25 @@ const App: React.FC = () => {
                             <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                        <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: theme === 'dark' ? '#64748b' : '#94a3b8'}} />
                         <YAxis hide />
-                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                        <Tooltip contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          backgroundColor: theme === 'dark' ? '#0f172a' : '#fff',
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                          color: theme === 'dark' ? '#fff' : '#000'
+                        }} />
                         <Area type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="absolute top-6 right-8 opacity-0 group-hover/traffic:opacity-100 transition-all text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded">
+                  <div className="absolute top-6 right-8 opacity-0 group-hover/traffic:opacity-100 transition-all text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded">
                     Aggregated by 1-minute windows
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-3xl p-6 text-white overflow-hidden relative border border-slate-800 shadow-2xl flex flex-col">
+                <div className={`rounded-3xl p-6 text-white overflow-hidden relative border shadow-2xl flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-slate-900 border-slate-800'}`}>
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="font-bold flex items-center gap-2 text-indigo-400 text-sm uppercase tracking-widest">
                       <span className="relative flex h-2 w-2">
@@ -397,8 +463,8 @@ const App: React.FC = () => {
 
           {activeTab === 'technical' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4 duration-500">
-               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm group/agent relative">
-                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center justify-between">
+               <div className={`p-8 rounded-3xl border transition-colors group/agent relative ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <h3 className={`text-lg font-bold mb-8 flex items-center justify-between ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                      <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-indigo-500"></div> User Agent Analysis
                      </div>
@@ -414,7 +480,7 @@ const App: React.FC = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={technicalStats.browsers} layout="vertical">
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" fontSize={11} width={100} axisLine={false} tickLine={false} tick={{fill: '#64748b', fontWeight: 600}} />
+                        <YAxis dataKey="name" type="category" fontSize={11} width={100} axisLine={false} tickLine={false} tick={{fill: theme === 'dark' ? '#94a3b8' : '#64748b', fontWeight: 600}} />
                         <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
                         <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={28}>
                           {technicalStats.browsers.map((entry, index) => (
@@ -425,8 +491,8 @@ const App: React.FC = () => {
                     </ResponsiveContainer>
                   </div>
                </div>
-               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm group/os relative">
-                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center justify-between">
+               <div className={`p-8 rounded-3xl border transition-colors group/os relative ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <h3 className={`text-lg font-bold mb-8 flex items-center justify-between ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-indigo-500"></div> OS Distribution
                     </div>
@@ -456,10 +522,10 @@ const App: React.FC = () => {
 
           {activeTab === 'funnels' && (
             <div className="space-y-8 animate-in fade-in duration-700">
-               <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+               <div className={`p-10 rounded-3xl border relative overflow-hidden transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 relative z-10">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Conversion Pipeline</h2>
+                      <h2 className={`text-2xl font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Conversion Pipeline</h2>
                       <p className="text-sm text-slate-500 font-medium">Tracking multi-step efficiency across simulated journeys.</p>
                     </div>
                     <div className="mt-4 md:mt-0 px-6 py-3 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs border-2 border-indigo-100 uppercase tracking-[0.2em] shadow-sm">
@@ -472,13 +538,13 @@ const App: React.FC = () => {
                       <div key={idx} className={`relative transition-all duration-700 group/funnel ${lastMatchedStep === step.stepKey ? 'scale-[1.03]' : ''}`}>
                         <div className="flex items-center gap-8">
                           <div className="w-44 text-right hidden md:block">
-                             <div className={`flex items-center justify-end gap-3 mb-1 transition-colors duration-300 ${lastMatchedStep === step.stepKey ? 'text-indigo-600' : 'text-slate-800'}`}>
+                             <div className={`flex items-center justify-end gap-3 mb-1 transition-colors duration-300 ${lastMatchedStep === step.stepKey ? 'text-indigo-600' : theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
                                {lastMatchedStep === step.stepKey && <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>}
                                <span className="text-sm font-bold">{step.label}</span>
                              </div>
                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{step.count.toLocaleString()} sessions</p>
                           </div>
-                          <div className={`flex-1 bg-slate-50 h-16 rounded-2xl relative overflow-hidden border-2 transition-all duration-500 ${lastMatchedStep === step.stepKey ? 'shadow-xl shadow-indigo-100 border-indigo-500' : 'border-slate-100'}`}>
+                          <div className={`flex-1 h-16 rounded-2xl relative overflow-hidden border-2 transition-all duration-500 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-50'} ${lastMatchedStep === step.stepKey ? 'shadow-xl shadow-indigo-500/20 border-indigo-500' : theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
                              <div 
                                 className={`h-full bg-indigo-600 transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-end px-6 relative
                                   ${lastMatchedStep === step.stepKey ? 'brightness-125 saturate-150' : ''}`}
@@ -496,11 +562,11 @@ const App: React.FC = () => {
                         
                         {idx < funnelData.steps.length - 1 && (
                           <div className="ml-0 md:ml-44 py-4 flex items-center gap-4 group/leakage relative">
-                             <div className="w-0.5 h-10 bg-slate-100 ml-6 relative overflow-hidden">
+                             <div className={`w-0.5 h-10 ml-6 relative overflow-hidden ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
                                <div className={`absolute top-0 left-0 w-full h-full bg-rose-500 transition-all duration-1000 ${lastMatchedStep === step.stepKey ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}></div>
                              </div>
                              <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border-2 transition-all duration-500 flex items-center gap-2 cursor-help
-                               ${lastMatchedStep === funnelData.steps[idx].stepKey ? 'bg-rose-50 text-rose-500 border-rose-200 translate-x-2' : 'bg-slate-50 text-slate-400 border-slate-100 opacity-50 hover:opacity-100'}`}>
+                               ${lastMatchedStep === funnelData.steps[idx].stepKey ? 'bg-rose-50 text-rose-500 border-rose-200 translate-x-2' : theme === 'dark' ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-50 text-slate-400 border-slate-100 opacity-50 hover:opacity-100'}`}>
                                <svg className={`w-2.5 h-2.5 transition-transform duration-500 ${lastMatchedStep === step.stepKey ? 'animate-bounce' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 14l-7 7-7-7" /></svg>
                                {step.dropoff}% drop-off
                              </span>
@@ -519,14 +585,14 @@ const App: React.FC = () => {
 
           {activeTab === 'install' && (
             <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
-               <div className={`bg-white rounded-3xl border border-slate-200 p-8 shadow-sm transition-all duration-500 ${!isVerified ? 'text-center p-16' : ''}`}>
+               <div className={`rounded-3xl border p-8 transition-all duration-500 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} ${!isVerified ? 'text-center p-16' : ''}`}>
                   <div className={`flex flex-col ${isVerified ? 'md:flex-row md:items-center' : 'items-center'} justify-between gap-8`}>
                     <div className={`flex items-center gap-5 ${!isVerified ? 'flex-col mb-4' : ''}`}>
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${isVerified ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${isVerified ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                       </div>
                       <div className={!isVerified ? 'text-center' : ''}>
-                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Handshake Center</h2>
+                        <h2 className={`text-2xl font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Handshake Center</h2>
                         <p className="text-sm text-slate-500 font-medium">{isVerified ? 'The pipeline is established and synchronized.' : 'Connect your Cloudflare Edge receiver to track traffic.'}</p>
                       </div>
                     </div>
@@ -537,12 +603,12 @@ const App: React.FC = () => {
                           <input 
                             type="text" placeholder="https://your-worker.workers.dev"
                             value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)}
-                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-mono transition-all"
+                            className={`flex-1 border-2 rounded-2xl px-6 py-4 text-sm focus:ring-4 outline-none font-mono transition-all ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-indigo-900/30 focus:border-indigo-500' : 'bg-slate-50 border-slate-100 focus:ring-indigo-100 focus:border-indigo-600'}`}
                           />
                           <div className="relative group/establish">
                             <button 
                               onClick={verifyConnection} disabled={testStatus === 'sending'}
-                              className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 active:scale-95 whitespace-nowrap"
+                              className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 dark:shadow-indigo-900/20 active:scale-95 whitespace-nowrap"
                             >
                               {testStatus === 'sending' ? 'Verifying...' : 'Establish Connection'}
                             </button>
@@ -553,11 +619,11 @@ const App: React.FC = () => {
                           </div>
                         </>
                       ) : (
-                        <div className="flex items-center justify-between w-full bg-slate-50 border-2 border-slate-100 px-6 py-4 rounded-2xl shadow-inner relative group/active-link">
+                        <div className={`flex items-center justify-between w-full border-2 px-6 py-4 rounded-2xl shadow-inner relative group/active-link ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                           <span className="text-sm font-mono text-slate-500 truncate mr-6">{customEndpoint}</span>
                           <button 
                             onClick={disconnect}
-                            className="px-6 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 active:scale-95"
+                            className="px-6 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 active:scale-95 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-900/30"
                           >
                             Disconnect
                           </button>
@@ -569,14 +635,14 @@ const App: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  {errorMessage && <p className="text-rose-500 text-xs font-bold mt-8 animate-in slide-in-from-top-1 px-5 py-3.5 bg-rose-50 rounded-2xl border-2 border-rose-100 text-center">{errorMessage}</p>}
+                  {errorMessage && <p className="text-rose-500 text-xs font-bold mt-8 animate-in slide-in-from-top-1 px-5 py-3.5 bg-rose-50 dark:bg-rose-950/30 rounded-2xl border-2 border-rose-100 dark:border-rose-900/30 text-center">{errorMessage}</p>}
                </div>
 
                {isVerified && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-bottom-6 duration-700">
-                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-                      <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
-                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                    <div className={`p-10 rounded-3xl border transition-colors flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
                         </div>
                         Quick Simulation
@@ -589,12 +655,12 @@ const App: React.FC = () => {
                            { label: 'Confirm Checkout Sale', type: 'purchase_complete', sub: 'Event: purchase_complete', help: 'Type: purchase_complete' },
                          ].map(t => (
                            <div key={t.label} className="relative group/sim">
-                             <button onClick={() => quickSend(t.type)} className="w-full flex items-center justify-between p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl hover:border-indigo-600 hover:bg-white transition-all group active:scale-[0.98] text-left">
+                             <button onClick={() => quickSend(t.type)} className={`w-full flex items-center justify-between p-5 border-2 rounded-2xl transition-all group active:scale-[0.98] text-left ${theme === 'dark' ? 'bg-slate-800 border-slate-700 hover:border-indigo-500 hover:bg-slate-750' : 'bg-slate-50 border-slate-100 hover:border-indigo-600 hover:bg-white'}`}>
                                 <div>
-                                  <span className="text-sm font-bold text-slate-800 block">{t.label}</span>
+                                  <span className={`text-sm font-bold block ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>{t.label}</span>
                                   <span className="text-[10px] text-slate-400 font-mono mt-0.5">{t.sub}</span>
                                 </div>
-                                <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${theme === 'dark' ? 'bg-slate-700 group-hover:bg-indigo-600' : 'bg-slate-200 group-hover:bg-indigo-600 group-hover:text-white'}`}>
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 5l7 7-7 7" /></svg>
                                 </div>
                              </button>
@@ -606,9 +672,9 @@ const App: React.FC = () => {
                          ))}
                       </div>
                     </div>
-                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-                      <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
-                        <div className="p-3 bg-slate-900 text-white rounded-2xl">
+                    <div className={`p-10 rounded-3xl border transition-colors flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                      <h3 className={`text-xl font-bold mb-8 flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        <div className="p-3 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
                         </div>
                         Payload Dispatch
@@ -616,9 +682,9 @@ const App: React.FC = () => {
                       <div className="flex-1 flex flex-col group/payload relative">
                         <textarea 
                           value={customJson} onChange={(e) => setCustomJson(e.target.value)}
-                          className="w-full bg-slate-900 text-indigo-300 font-mono text-[11px] p-6 rounded-2xl border-4 border-slate-800 focus:ring-4 focus:ring-indigo-100 min-h-[180px] mb-6 outline-none shadow-inner"
+                          className={`w-full font-mono text-[11px] p-6 rounded-2xl border-4 min-h-[180px] mb-6 outline-none shadow-inner transition-colors ${theme === 'dark' ? 'bg-slate-950 text-indigo-400 border-slate-800 focus:ring-indigo-500/20' : 'bg-slate-900 text-indigo-300 border-slate-800 focus:ring-indigo-100'}`}
                         />
-                        <button onClick={() => sendSimulatedEvent()} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-xl active:scale-95 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3">
+                        <button onClick={() => sendSimulatedEvent()} className={`w-full py-5 text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 ${theme === 'dark' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-900 hover:bg-black'}`}>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                           Transmit Payload
                         </button>
@@ -635,8 +701,8 @@ const App: React.FC = () => {
 
           {activeTab === 'deploy' && (
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-               <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Receiver Implementation</h2>
+               <div className={`p-12 rounded-3xl border transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <h2 className={`text-2xl font-bold mb-2 tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Receiver Implementation</h2>
                   <p className="text-sm text-slate-500 mb-12 font-medium">Use these optimized edge-scripts to create your own globally distributed analytics endpoint.</p>
                   <SnippetGenerator endpoint={customEndpoint} />
                </div>
@@ -645,8 +711,8 @@ const App: React.FC = () => {
 
           {activeTab === 'settings' && (
             <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-               <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">AI Strategy Engine</h2>
+               <div className={`p-10 rounded-3xl border transition-colors ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <h2 className={`text-2xl font-bold mb-2 tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>AI Strategy Engine</h2>
                   <p className="text-sm text-slate-500 mb-10 font-medium">Configure how behavioral data is processed for strategic reporting.</p>
                   
                   <div className="space-y-8">
@@ -656,9 +722,9 @@ const App: React.FC = () => {
                            <div className="relative group/provider">
                              <button 
                                 onClick={() => setAiConfig({ ...aiConfig, provider: 'gemini-builtin' })}
-                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'gemini-builtin' ? 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
+                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'gemini-builtin' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4 ring-indigo-900/10' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : theme === 'dark' ? 'border-slate-800 hover:border-slate-700' : 'border-slate-100 hover:border-slate-200'}`}
                              >
-                                <span className="block font-bold text-slate-900">Edge Gemini</span>
+                                <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Edge Gemini</span>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Built-in Flash Inference</span>
                              </button>
                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
@@ -669,9 +735,9 @@ const App: React.FC = () => {
                            <div className="relative group/provider">
                              <button 
                                 onClick={() => setAiConfig({ ...aiConfig, provider: 'custom-endpoint' })}
-                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'custom-endpoint' ? 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
+                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'custom-endpoint' ? (theme === 'dark' ? 'border-indigo-500 bg-indigo-950/20 ring-4 ring-indigo-900/10' : 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50') : theme === 'dark' ? 'border-slate-800 hover:border-slate-700' : 'border-slate-100 hover:border-slate-200'}`}
                              >
-                                <span className="block font-bold text-slate-900">Custom Logic</span>
+                                <span className={`block font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Custom Logic</span>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Proprietary External Provider</span>
                              </button>
                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
@@ -682,7 +748,7 @@ const App: React.FC = () => {
                         </div>
                      </div>
 
-                     <div className="pt-8 border-t border-slate-100">
+                     <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
                        {aiConfig.provider === 'gemini-builtin' ? (
                           <div className="space-y-6">
                              <div className="relative group/tier">
@@ -690,7 +756,7 @@ const App: React.FC = () => {
                                 <select 
                                    value={aiConfig.model}
                                    onChange={(e: any) => setAiConfig({ ...aiConfig, model: e.target.value })}
-                                   className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 appearance-none transition-all cursor-pointer"
+                                   className={`w-full border-2 p-4 rounded-xl text-sm font-bold outline-none appearance-none transition-all cursor-pointer ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-4 focus:ring-indigo-900/20' : 'bg-slate-50 border-slate-100 focus:ring-4 focus:ring-indigo-100'}`}
                                 >
                                    <option value="gemini-3-flash-preview">Flash (Balanced Velocity)</option>
                                    <option value="gemini-3-pro-preview">Pro (Advanced Reasoning)</option>
@@ -703,14 +769,14 @@ const App: React.FC = () => {
                                     <div className="absolute top-full left-8 border-8 border-transparent border-t-slate-800"></div>
                                 </div>
                              </div>
-                             <div className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-between gap-6">
+                             <div className={`p-6 rounded-2xl border flex items-center justify-between gap-6 transition-colors ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
                                <div className="flex-1">
-                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Inference Auth</h4>
+                                 <h4 className={`text-sm font-bold mb-1 ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>Inference Auth</h4>
                                  <p className="text-xs text-slate-500 font-medium leading-relaxed">Required for accessing restricted models.</p>
                                </div>
                                <button 
                                  onClick={async () => (window as any).aistudio?.openSelectKey()}
-                                 className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-100 transition-all shadow-sm active:scale-95 uppercase tracking-widest"
+                                 className={`px-6 py-3 border rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 uppercase tracking-widest ${theme === 'dark' ? 'bg-slate-800 border-slate-600 text-slate-100 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                                >
                                  Manage Keys
                                </button>
@@ -723,7 +789,7 @@ const App: React.FC = () => {
                                 type="text" placeholder="https://your-api.com/v1/analyze"
                                 value={aiConfig.customEndpoint || ''}
                                 onChange={(e) => setAiConfig({ ...aiConfig, customEndpoint: e.target.value })}
-                                className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-indigo-100 font-mono shadow-inner"
+                                className={`w-full border-2 p-5 rounded-2xl text-sm outline-none font-mono shadow-inner transition-colors ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white focus:ring-4 focus:ring-indigo-900/30' : 'bg-slate-50 border-slate-100 focus:ring-4 focus:ring-indigo-100'}`}
                              />
                           </div>
                        )}

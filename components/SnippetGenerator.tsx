@@ -50,7 +50,7 @@ xhr.send(JSON.stringify({
   };
 
   return (
-    <div className="bg-slate-900 rounded-2xl p-8 shadow-2xl border border-slate-800">
+    <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-8 shadow-2xl border border-slate-800 transition-colors duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div className="flex bg-slate-800 p-1.5 rounded-xl border border-slate-700">
           {(['sendBeacon', 'fetch', 'xhr'] as TransportMethod[]).map((m) => (
@@ -68,7 +68,7 @@ xhr.send(JSON.stringify({
         <div className="relative group/copy w-full md:w-auto">
           <button 
             onClick={copyToClipboard}
-            className="w-full md:w-auto text-sm font-bold px-6 py-2.5 bg-slate-700 text-slate-200 rounded-xl hover:bg-indigo-600 hover:text-white transition-all border border-slate-600 active:scale-95 shadow-lg"
+            className="w-full md:w-auto text-sm font-bold px-6 py-2.5 bg-slate-700 text-slate-200 rounded-xl hover:bg-indigo-600 hover:text-white transition-all border border-slate-600 active:scale-95 shadow-lg dark:border-slate-700 dark:bg-slate-800"
           >
             {copied ? 'Copied to Clipboard!' : 'Copy to Clipboard'}
           </button>
