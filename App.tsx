@@ -132,7 +132,7 @@ const App: React.FC = () => {
         setTestStatus('success'); 
         setTimeout(() => setTestStatus('idle'), 2000);
       } else {
-        throw new Error(`Connection Failed: ${response.status}`);
+        throw new Error(`Pipeline returned ${response.status}`);
       }
     } catch (e: any) { 
       setTestStatus('error'); 
@@ -175,26 +175,23 @@ const App: React.FC = () => {
         };
         setSentLogs(prev => [newLog, ...prev].slice(0, 10));
         
-        // Funnel highlighting
-        if (finalPayload.path === '/home') setLastMatchedStep('home');
-        else if (finalPayload.path === '/pricing') setLastMatchedStep('pricing');
-        else if (finalPayload.event === 'signup_start') setLastMatchedStep('signup');
-        else if (finalPayload.event === 'purchase_complete') setLastMatchedStep('completed');
-        setTimeout(() => setLastMatchedStep(null), 3000);
+        // Trigger Funnel Animation
+        let matchedStep: string | null = null;
+        if (finalPayload.path === '/home') matchedStep = 'home';
+        else if (finalPayload.path === '/pricing') matchedStep = 'pricing';
+        else if (finalPayload.event === 'signup_start') matchedStep = 'signup';
+        else if (finalPayload.event === 'purchase_complete') matchedStep = 'completed';
+        
+        if (matchedStep) {
+          setLastMatchedStep(matchedStep);
+          setTimeout(() => setLastMatchedStep(null), 2000);
+        }
         
         setTestStatus('success');
-        setTimeout(() => setTestStatus('idle'), 2000);
+        setTimeout(() => setTestStatus('idle'), 1500);
       }
     } catch (e: any) {
       setTestStatus('error');
-      const errorLog: SentLog = {
-        id: 'ERR',
-        type: finalPayload.event,
-        timestamp: new Date().toLocaleTimeString(),
-        status: 'error',
-        errorMessage: e.message
-      };
-      setSentLogs(prev => [errorLog, ...prev].slice(0, 10));
     }
   };
 
@@ -215,494 +212,527 @@ const App: React.FC = () => {
   }, [events, aiConfig]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
       {/* Side Navigation */}
-      <nav className="fixed top-0 left-0 h-full w-64 bg-white border-r border-slate-200 p-6 hidden md:block">
+      <nav className="fixed top-0 left-0 h-full w-64 bg-white border-r border-slate-200 p-6 hidden md:block z-30">
         <div className="flex items-center gap-2 mb-10">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-indigo-200 shadow-lg">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-100">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
           </div>
           <span className="text-xl font-bold text-slate-800 tracking-tight">LiteTrack</span>
         </div>
 
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {[
-            { id: 'overview', label: 'Overview', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> },
-            { id: 'technical', label: 'Technical', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
-            { id: 'funnels', label: 'Funnels', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg> },
-            { id: 'install', label: 'Integration', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
-            { id: 'deploy', label: 'Deployment', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
-            { id: 'settings', label: 'Settings', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> }
+            { id: 'overview', label: 'Overview', help: 'Primary dashboard for general metrics and traffic charts.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> },
+            { id: 'technical', label: 'Technical', help: 'Device, OS, and Browser distributions.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
+            { id: 'funnels', label: 'Funnels', help: 'Multi-stage conversion path analysis.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg> },
+            { id: 'install', label: 'Integration', help: 'Live handshake control and simulator tools.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+            { id: 'deploy', label: 'Deployment', help: 'optimized edge-scripts for Cloudflare Workers.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
+            { id: 'settings', label: 'Settings', help: 'AI model configuration and provider endpoints.', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> }
           ].map((tab) => (
-            <li key={tab.id}>
+            <li key={tab.id} className="group/nav relative">
               <button 
                 onClick={() => setActiveTab(tab.id as any)} 
-                className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-all flex items-center gap-3 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-100'}`}
               >
-                <div className={activeTab === tab.id ? 'text-white' : 'text-slate-400'}>{tab.icon}</div>
+                {tab.icon}
                 {tab.label}
               </button>
+              <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 w-48 p-2.5 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all z-50 pointer-events-none shadow-xl border border-white/10 font-bold uppercase tracking-widest leading-relaxed">
+                {tab.help}
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900"></div>
+              </div>
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Main Content Area */}
-      <main className="md:ml-64 p-4 md:p-8 max-w-7xl mx-auto pb-20">
+      <main className="md:ml-64 p-4 md:p-8 max-w-[1400px] mx-auto min-h-screen">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">LiteTrack Dashboard</h1>
-            <p className="text-slate-500 text-sm font-medium">Real-time Web Intelligence with {aiConfig.provider === 'gemini-builtin' ? 'Gemini AI' : 'Custom Provider'}</p>
+            <p className="text-slate-500 text-sm font-medium">Real-time Web Analytics Interface</p>
           </div>
           <div className="flex items-center gap-4">
-             {testStatus === 'success' && <div className="text-emerald-600 text-xs font-bold uppercase tracking-widest flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Pipeline Verified</div>}
-             <button 
-              onClick={fetchInsights}
-              disabled={isLoadingInsights}
-              className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50 shadow-xl shadow-slate-200 flex items-center gap-2 active:scale-95"
-            >
-              {isLoadingInsights ? 'Analyzing...' : 'Generate AI Report'}
-            </button>
+             {testStatus === 'success' && <div className="text-emerald-600 text-xs font-bold uppercase tracking-widest flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Receiver Active</div>}
+             <div className="relative group/btn">
+               <button 
+                onClick={fetchInsights}
+                disabled={isLoadingInsights}
+                className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-xl shadow-indigo-100 flex items-center gap-2 active:scale-95"
+              >
+                {isLoadingInsights ? 'Processing...' : 'AI Traffic Analysis'}
+              </button>
+              <div className="absolute top-full right-0 mt-3 w-64 p-3 bg-slate-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover/btn:opacity-100 group-hover/btn:visible transition-all z-50 pointer-events-none shadow-2xl border border-white/10 leading-relaxed text-center font-bold uppercase tracking-widest">
+                Deep behavioral analysis using Google Gemini models.
+                <div className="absolute bottom-full right-8 border-8 border-transparent border-b-slate-900"></div>
+              </div>
+             </div>
           </div>
         </header>
 
         {insights && (
-          <div className="mb-10 bg-indigo-900 text-white p-8 rounded-3xl shadow-2xl animate-in fade-in zoom-in border border-indigo-800">
-             <div className="flex items-center gap-2 mb-4 text-indigo-300 uppercase tracking-widest text-[10px] font-bold">
+          <div className="mb-10 bg-slate-900 text-white p-8 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-500 border border-slate-800">
+             <div className="flex items-center gap-2 mb-4 text-indigo-400 uppercase tracking-[0.2em] text-[10px] font-black">
                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
-               AI Behavioral Strategy ({aiConfig.provider})
+               Intelligent Behavioral Report
              </div>
-             <p className="text-xl font-medium mb-8 leading-relaxed max-w-4xl">{insights.summary}</p>
+             <p className="text-xl font-medium mb-8 leading-relaxed max-w-4xl opacity-90">{insights.summary}</p>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-indigo-950/40 p-6 rounded-2xl border border-indigo-700/50 backdrop-blur-md">
-                   <h4 className="font-bold text-xs mb-4 text-indigo-200 uppercase tracking-[0.2em]">Optimization Tactics</h4>
+                <div className="lg:col-span-2 bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                   <h4 className="font-bold text-xs mb-4 text-slate-400 uppercase tracking-widest">Growth Recommendations</h4>
                    <ul className="text-sm space-y-3">
-                      {insights.suggestions.map((s, i) => <li key={i} className="flex gap-3 items-start"><span className="text-indigo-400 font-bold">#</span> <span className="opacity-90 leading-relaxed">{s}</span></li>)}
+                      {insights.suggestions.map((s, i) => <li key={i} className="flex gap-3 items-start"><span className="text-indigo-500 font-bold">#</span> <span className="opacity-80">{s}</span></li>)}
                    </ul>
                 </div>
-                <div className="flex flex-col justify-center items-center bg-indigo-950/40 p-6 rounded-2xl border border-indigo-700/50 backdrop-blur-md">
-                   <div className="relative w-28 h-28 flex items-center justify-center">
+                <div className="flex flex-col justify-center items-center bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm relative group/score">
+                   <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <path className="text-indigo-800" strokeDasharray="100, 100" strokeWidth="2.5" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path className="text-indigo-300 transition-all duration-1000" strokeDasharray={`${insights.performanceScore}, 100`} strokeWidth="2.5" strokeLinecap="round" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-slate-800" strokeDasharray="100, 100" strokeWidth="3" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-indigo-500 transition-all duration-1000" strokeDasharray={`${insights.performanceScore}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                       </svg>
-                      <span className="absolute text-3xl font-bold font-mono">{insights.performanceScore}</span>
+                      <span className="absolute text-3xl font-bold font-mono tracking-tighter">{insights.performanceScore}</span>
                    </div>
-                   <span className="text-[10px] uppercase font-bold text-indigo-400 mt-4 tracking-widest">Global Traction Score</span>
+                   <span className="text-[10px] uppercase font-black text-slate-500 mt-4 tracking-widest">Performance Score</span>
+                   <div className="absolute bottom-full mb-3 w-40 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/score:opacity-100 group-hover/score:visible transition-all text-center font-bold uppercase tracking-widest pointer-events-none">
+                      Calculated from traffic density vs engagement targets.
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                   </div>
                 </div>
              </div>
           </div>
         )}
 
-        {/* OVERVIEW TAB */}
-        {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard label="Pipeline" value={isVerified ? "CONNECTED" : "OFFLINE"} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
-              <StatCard label="Total Events" value={events.length.toLocaleString()} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>} />
-              <StatCard label="Pipeline Health" value="100%" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-              <StatCard label="Success Rate" value={`${funnelData.steps[funnelData.steps.length-1].conversion}%`} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-800 mb-8 flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-100"></div>
-                  Real-time Traffic Velocity
-                </h3>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-                      <YAxis hide />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: '#1e293b', color: '#fff' }} 
-                        itemStyle={{ color: '#818cf8', fontWeight: 'bold' }}
-                      />
-                      <Area type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" animationDuration={1500} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+        <div className="w-full">
+          {activeTab === 'overview' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard 
+                  label="Pipeline" 
+                  value={isVerified ? "ONLINE" : "OFFLINE"} 
+                  description="Real-time status of your Cloudflare receiver handshake."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} 
+                />
+                <StatCard 
+                  label="Total Tractions" 
+                  value={events.length.toLocaleString()} 
+                  description="Total volume of user events ingested since session start."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>} 
+                />
+                <StatCard 
+                  label="Network Health" 
+                  value="100%" 
+                  description="Percentage of events correctly formatted and acknowledged by the worker."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+                />
+                <StatCard 
+                  label="Pipeline Score" 
+                  value={funnelData.steps[funnelData.steps.length-1].conversion} 
+                  description="Direct conversion efficiency of the absolute session journey."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} 
+                />
               </div>
 
-              <div className="bg-slate-900 rounded-3xl p-6 text-white overflow-hidden relative border border-slate-800 shadow-2xl flex flex-col">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold flex items-center gap-2 text-indigo-400 text-sm">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    Live Feed
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative group/traffic">
+                  <h3 className="font-bold text-slate-800 mb-8 flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-100"></div>
+                    Real-time Traffic Velocity
                   </h3>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{sentLogs.length} Events</span>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                        <YAxis hide />
+                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                        <Area type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="absolute top-6 right-8 opacity-0 group-hover/traffic:opacity-100 transition-all text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded">
+                    Aggregated by 1-minute windows
+                  </div>
                 </div>
-                <div className="space-y-3 flex-1 overflow-y-auto scrollbar-hide pr-1">
-                  {sentLogs.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-600 text-[11px] italic text-center px-4">
-                      Awaiting incoming signals from your pipeline...
-                    </div>
-                  ) : (
-                    sentLogs.map(log => (
-                      <div key={log.id} className="animate-in slide-in-from-right duration-500 bg-slate-800/40 p-3.5 rounded-xl border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
-                        <div className="flex items-center justify-between text-[10px] font-black mb-1.5 uppercase tracking-wider">
-                          <span className={log.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}>{log.status}</span>
-                          <span className="text-slate-500 font-mono">{log.timestamp}</span>
-                        </div>
-                        <div className="font-mono text-[11px] text-indigo-100 truncate flex items-center gap-2">
-                           <span className="opacity-40">>></span> {log.type}
-                        </div>
-                        <div className="text-[9px] text-slate-500 truncate font-mono mt-1">{log.payload?.path || '/'}</div>
+
+                <div className="bg-slate-900 rounded-3xl p-6 text-white overflow-hidden relative border border-slate-800 shadow-2xl flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold flex items-center gap-2 text-indigo-400 text-sm uppercase tracking-widest">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      Live Stream
+                    </h3>
+                  </div>
+                  <div className="space-y-3 flex-1 overflow-y-auto scrollbar-hide pr-1 font-mono text-[10px]">
+                    {sentLogs.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-600 italic text-center px-4">
+                        Awaiting incoming events from the established pipeline...
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      sentLogs.map(log => (
+                        <div key={log.id} className="animate-in slide-in-from-right duration-500 bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/50">
+                          <div className="flex items-center justify-between font-black mb-1.5 uppercase tracking-wider text-[8px]">
+                            <span className={log.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}>{log.status}</span>
+                            <span className="text-slate-500">{log.timestamp}</span>
+                          </div>
+                          <div className="text-indigo-100 truncate flex items-center gap-2">
+                             <span className="opacity-40">>></span> {log.type}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* TECHNICAL TAB */}
-        {activeTab === 'technical' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4">
-             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-indigo-500"></div> Browser Environment
-                </h3>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={technicalStats.browsers} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" fontSize={11} width={100} axisLine={false} tickLine={false} tick={{fill: '#64748b', fontWeight: 600}} />
-                      <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                      <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={24}>
-                        {technicalStats.browsers.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-             </div>
-             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500"></div> OS Distribution
-                </h3>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={technicalStats.oss} innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value" animationDuration={1200} stroke="none">
-                        {technicalStats.oss.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {/* INTEGRATION TAB */}
-        {activeTab === 'install' && (
-          <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-6 duration-500">
-             {!isVerified ? (
-               <div className="bg-white border border-slate-200 rounded-3xl p-16 shadow-2xl text-center max-w-2xl mx-auto">
-                   <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
-                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                   </div>
-                   <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Establish Handshake</h2>
-                   <p className="text-slate-500 mb-10 font-medium">Connect your LiteTrack receiver (Cloudflare Worker) to enable real-time simulation and AI traffic reporting.</p>
-                   
-                   <div className="space-y-4">
-                      <div className="relative">
-                        <input 
-                          type="text" placeholder="https://your-receiver.workers.dev"
-                          value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 text-center font-mono text-sm focus:ring-4 focus:ring-indigo-100 outline-none transition-all border-2 focus:border-indigo-600"
-                        />
-                      </div>
-                      
-                      {errorMessage && <div className="text-rose-600 text-xs font-bold p-4 bg-rose-50 rounded-2xl border border-rose-100 animate-bounce">{errorMessage}</div>}
-
-                      <button 
-                        onClick={verifyConnection} disabled={testStatus === 'sending'}
-                        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 disabled:opacity-50 active:scale-95"
-                      >
-                        {testStatus === 'sending' ? 'Verifying Pipeline...' : 'Establish Secure Connection'}
-                      </button>
-                   </div>
-                </div>
-             ) : (
-               <div className="space-y-8">
-                  {/* Connection Header Card */}
-                  <div className="bg-indigo-600 rounded-3xl p-8 shadow-2xl text-white flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 opacity-10 -mr-10 -mt-10">
-                       <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    </div>
-                    <div className="flex items-center gap-5 relative z-10">
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-xl">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 leading-none mb-1.5">Active Receiver</p>
-                        <h3 className="text-lg font-mono font-bold truncate max-w-md">{customEndpoint}</h3>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={disconnect}
-                      className="px-8 py-3.5 bg-rose-500/90 hover:bg-rose-600 text-white rounded-xl text-xs font-black transition-all shadow-xl backdrop-blur-md active:scale-95 z-10 uppercase tracking-widest"
-                    >
-                      Disconnect Pipeline
-                    </button>
-                  </div>
-
-                  {/* Dual Column Simulation Panels */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                     <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-                        <div className="flex items-center gap-3 mb-8">
-                          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-900">Live Simulator</h3>
-                            <p className="text-xs text-slate-400 font-medium">Verify tracking logic with instant triggers.</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 flex-1">
-                           {[
-                             { label: 'Simulate Home Visit', type: 'pageview', sub: 'Event: pageview | Path: /home' },
-                             { label: 'View Pricing Table', type: 'view_pricing', sub: 'Event: pageview | Path: /pricing' },
-                             { label: 'Initiate Signup', type: 'signup_start', sub: 'Event: signup_start | Path: /signup' },
-                             { label: 'Confirm Purchase', type: 'purchase_complete', sub: 'Event: purchase_complete | Path: /checkout/success' },
-                           ].map(t => (
-                             <button 
-                              key={t.label} 
-                              onClick={() => quickSend(t.type)} 
-                              className="flex items-center justify-between p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-white transition-all group text-left active:scale-[0.98]"
-                             >
-                                <div>
-                                  <span className="text-sm font-bold text-slate-800 block">{t.label}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{t.sub}</span>
-                                </div>
-                                <div className="w-8 h-8 rounded-xl bg-slate-200 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7" /></svg>
-                                </div>
-                             </button>
-                           ))}
+          {activeTab === 'technical' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4 duration-500">
+               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm group/agent relative">
+                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div> User Agent Analysis
+                     </div>
+                     <div className="relative group/chartinfo">
+                        <svg className="w-4 h-4 text-slate-300 hover:text-indigo-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <div className="absolute bottom-full right-0 mb-3 w-40 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/chartinfo:opacity-100 group-hover/chartinfo:visible transition-all text-center font-bold uppercase tracking-widest pointer-events-none">
+                            Aggregated browser usage from metadata tags.
+                            <div className="absolute top-full right-1.5 border-8 border-transparent border-t-slate-800"></div>
                         </div>
                      </div>
-                     <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-                        <div className="flex items-center gap-3 mb-8">
-                          <div className="p-2 bg-slate-900 text-white rounded-lg">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-900">Advanced Transmit</h3>
-                            <p className="text-xs text-slate-400 font-medium">Test proprietary event schemas.</p>
-                          </div>
-                        </div>
-                        <div className="flex-1 flex flex-col">
-                          <textarea 
-                            value={customJson} onChange={(e) => setCustomJson(e.target.value)}
-                            className="w-full bg-slate-900 text-indigo-300 font-mono text-[11px] p-6 rounded-2xl border border-slate-800 focus:ring-4 focus:ring-indigo-100 min-h-[180px] mb-6 outline-none shadow-inner"
-                          />
-                          <button 
-                            onClick={() => sendSimulatedEvent()} 
-                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-black transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                            Transmit Payload
-                          </button>
-                        </div>
-                     </div>
+                  </h3>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={technicalStats.browsers} layout="vertical">
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" fontSize={11} width={100} axisLine={false} tickLine={false} tick={{fill: '#64748b', fontWeight: 600}} />
+                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                        <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={28}>
+                          {technicalStats.browsers.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                </div>
-             )}
-          </div>
-        )}
-
-        {/* REST OF TABS (FUNNELS, DEPLOY, SETTINGS) ARE RENDERED CONDITIONALLY AS BEFORE */}
-        {activeTab === 'funnels' && (
-          <div className="animate-in slide-in-from-bottom-4 duration-500">
-             <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-12">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Conversion Funnel</h2>
-                    <p className="text-sm text-slate-500 font-medium">Tracking multi-step user acquisition health.</p>
-                  </div>
-                  <div className="mt-4 md:mt-0 px-6 py-3 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs border-2 border-indigo-100 uppercase tracking-widest shadow-sm">
-                     {funnelData.steps[funnelData.steps.length-1].conversion}% Absolute Conversion
-                  </div>
-                </div>
-
-                <div className="space-y-10 max-w-4xl">
-                  {funnelData.steps.map((step, idx) => (
-                    <div key={idx} className="relative">
-                      <div className="flex items-center gap-8">
-                        <div className="w-40 text-right hidden md:block">
-                           <div className="flex items-center justify-end gap-3 mb-1">
-                             {lastMatchedStep === step.stepKey && <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>}
-                             <span className="text-sm font-bold text-slate-800">{step.label}</span>
-                           </div>
-                           <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{step.count.toLocaleString()} sessions</p>
+               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm group/os relative">
+                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div> OS Distribution
+                    </div>
+                    <div className="relative group/chartinfo">
+                        <svg className="w-4 h-4 text-slate-300 hover:text-indigo-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <div className="absolute bottom-full right-0 mb-3 w-40 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/chartinfo:opacity-100 group-hover/chartinfo:visible transition-all text-center font-bold uppercase tracking-widest pointer-events-none">
+                            Operating system share among unique visitors.
+                            <div className="absolute top-full right-1.5 border-8 border-transparent border-t-slate-800"></div>
                         </div>
-                        <div className="flex-1 bg-slate-100 h-16 rounded-2xl relative overflow-hidden border border-slate-200 shadow-inner">
-                           <div 
-                              className={`h-full bg-indigo-600 transition-all duration-1000 ease-out flex items-center justify-end px-6 ${lastMatchedStep === step.stepKey ? 'brightness-125 saturate-150' : ''}`}
-                              style={{ width: `${(step.count / (funnelData.steps[0].count || 1)) * 100}%` }}
-                           >
-                              <span className="text-[10px] font-black text-white/50">{step.conversion}%</span>
-                           </div>
+                     </div>
+                  </h3>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={technicalStats.oss} innerRadius={70} outerRadius={100} paddingAngle={10} dataKey="value" animationDuration={1200} stroke="none">
+                          {technicalStats.oss.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'funnels' && (
+            <div className="space-y-8 animate-in fade-in duration-700">
+               <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 relative z-10">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Conversion Pipeline</h2>
+                      <p className="text-sm text-slate-500 font-medium">Tracking multi-step efficiency across simulated journeys.</p>
+                    </div>
+                    <div className="mt-4 md:mt-0 px-6 py-3 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs border-2 border-indigo-100 uppercase tracking-[0.2em] shadow-sm">
+                       {funnelData.steps[funnelData.steps.length-1].conversion}% Success Rate
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-12 max-w-4xl relative z-10 mx-auto md:mx-0">
+                    {funnelData.steps.map((step, idx) => (
+                      <div key={idx} className={`relative transition-all duration-700 group/funnel ${lastMatchedStep === step.stepKey ? 'scale-[1.03]' : ''}`}>
+                        <div className="flex items-center gap-8">
+                          <div className="w-44 text-right hidden md:block">
+                             <div className={`flex items-center justify-end gap-3 mb-1 transition-colors duration-300 ${lastMatchedStep === step.stepKey ? 'text-indigo-600' : 'text-slate-800'}`}>
+                               {lastMatchedStep === step.stepKey && <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>}
+                               <span className="text-sm font-bold">{step.label}</span>
+                             </div>
+                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{step.count.toLocaleString()} sessions</p>
+                          </div>
+                          <div className={`flex-1 bg-slate-50 h-16 rounded-2xl relative overflow-hidden border-2 transition-all duration-500 ${lastMatchedStep === step.stepKey ? 'shadow-xl shadow-indigo-100 border-indigo-500' : 'border-slate-100'}`}>
+                             <div 
+                                className={`h-full bg-indigo-600 transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-end px-6 relative
+                                  ${lastMatchedStep === step.stepKey ? 'brightness-125 saturate-150' : ''}`}
+                                style={{ width: `${(step.count / (funnelData.steps[0].count || 1)) * 100}%` }}
+                             >
+                                <span className={`text-[11px] font-black text-white transition-all duration-300 ${lastMatchedStep === step.stepKey ? 'scale-125' : 'opacity-40'}`}>
+                                  {step.conversion}%
+                                </span>
+                             </div>
+                             <div className="absolute top-1/2 left-4 -translate-y-1/2 opacity-0 invisible group-hover/funnel:opacity-100 group-hover/funnel:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl">
+                               {step.count.toLocaleString()} Users reached this stage
+                             </div>
+                          </div>
                         </div>
+                        
+                        {idx < funnelData.steps.length - 1 && (
+                          <div className="ml-0 md:ml-44 py-4 flex items-center gap-4 group/leakage relative">
+                             <div className="w-0.5 h-10 bg-slate-100 ml-6 relative overflow-hidden">
+                               <div className={`absolute top-0 left-0 w-full h-full bg-rose-500 transition-all duration-1000 ${lastMatchedStep === step.stepKey ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}></div>
+                             </div>
+                             <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border-2 transition-all duration-500 flex items-center gap-2 cursor-help
+                               ${lastMatchedStep === funnelData.steps[idx].stepKey ? 'bg-rose-50 text-rose-500 border-rose-200 translate-x-2' : 'bg-slate-50 text-slate-400 border-slate-100 opacity-50 hover:opacity-100'}`}>
+                               <svg className={`w-2.5 h-2.5 transition-transform duration-500 ${lastMatchedStep === step.stepKey ? 'animate-bounce' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 14l-7 7-7-7" /></svg>
+                               {step.dropoff}% drop-off
+                             </span>
+                             <div className="absolute top-1/2 left-full ml-4 -translate-y-1/2 opacity-0 invisible group-hover/leakage:opacity-100 group-hover/leakage:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl w-40 leading-relaxed">
+                               Percentage of users who abandoned the session at this step.
+                               <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900"></div>
+                             </div>
+                          </div>
+                        )}
                       </div>
-                      
-                      {idx < funnelData.steps.length - 1 && (
-                        <div className="ml-0 md:ml-48 py-2 flex items-center gap-3">
-                           <div className="w-0.5 h-10 bg-slate-200 ml-5"></div>
-                           <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-rose-50 text-rose-600 px-3 py-1 rounded-full border border-rose-100">
-                             &darr; {step.dropoff}% drop-off
-                           </span>
+                    ))}
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'install' && (
+            <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+               <div className={`bg-white rounded-3xl border border-slate-200 p-8 shadow-sm transition-all duration-500 ${!isVerified ? 'text-center p-16' : ''}`}>
+                  <div className={`flex flex-col ${isVerified ? 'md:flex-row md:items-center' : 'items-center'} justify-between gap-8`}>
+                    <div className={`flex items-center gap-5 ${!isVerified ? 'flex-col mb-4' : ''}`}>
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${isVerified ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      </div>
+                      <div className={!isVerified ? 'text-center' : ''}>
+                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Handshake Center</h2>
+                        <p className="text-sm text-slate-500 font-medium">{isVerified ? 'The pipeline is established and synchronized.' : 'Connect your Cloudflare Edge receiver to track traffic.'}</p>
+                      </div>
+                    </div>
+
+                    <div className={`flex-1 ${isVerified ? 'max-w-3xl' : 'w-full max-w-3xl'} flex flex-col md:flex-row items-stretch md:items-center gap-3`}>
+                      {!isVerified ? (
+                        <>
+                          <input 
+                            type="text" placeholder="https://your-worker.workers.dev"
+                            value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)}
+                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-mono transition-all"
+                          />
+                          <div className="relative group/establish">
+                            <button 
+                              onClick={verifyConnection} disabled={testStatus === 'sending'}
+                              className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 active:scale-95 whitespace-nowrap"
+                            >
+                              {testStatus === 'sending' ? 'Verifying...' : 'Establish Connection'}
+                            </button>
+                            <div className="absolute top-full right-0 mt-3 w-56 p-3 bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-xl opacity-0 invisible group-hover/establish:opacity-100 group-hover/establish:visible transition-all z-50 pointer-events-none shadow-2xl border border-white/10 leading-relaxed text-center">
+                              Sends a POST request to verify the receiver endpoint handles CORS and JSON inputs correctly.
+                              <div className="absolute bottom-full right-8 border-8 border-transparent border-b-slate-900"></div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between w-full bg-slate-50 border-2 border-slate-100 px-6 py-4 rounded-2xl shadow-inner relative group/active-link">
+                          <span className="text-sm font-mono text-slate-500 truncate mr-6">{customEndpoint}</span>
+                          <button 
+                            onClick={disconnect}
+                            className="px-6 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 active:scale-95"
+                          >
+                            Disconnect
+                          </button>
+                          <div className="absolute top-full left-0 mt-3 w-48 p-2 bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg opacity-0 invisible group-hover/active-link:opacity-100 group-hover/active-link:visible transition-all z-50 pointer-events-none text-center border border-white/5">
+                            Active ingestion endpoint
+                            <div className="absolute bottom-full left-8 border-8 border-transparent border-b-slate-800"></div>
+                          </div>
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-             </div>
-          </div>
-        )}
+                  </div>
+                  {errorMessage && <p className="text-rose-500 text-xs font-bold mt-8 animate-in slide-in-from-top-1 px-5 py-3.5 bg-rose-50 rounded-2xl border-2 border-rose-100 text-center">{errorMessage}</p>}
+               </div>
 
-        {activeTab === 'deploy' && (
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
-            <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Cloudflare Edge Receiver</h2>
-              <p className="text-slate-500 mb-12 font-medium">Deploy this worker script to your Cloudflare account to create a high-performance, globally distributed analytics endpoint.</p>
-              
-              <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl relative border-4 border-slate-800">
-                <div className="flex items-center justify-between mb-8">
-                   <div className="flex gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                   </div>
-                   <button 
-                    onClick={() => {
-                      const code = `export default {\n  async fetch(request) {\n    if (request.method === 'OPTIONS') {\n      return new Response(null, {\n        headers: {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Methods': 'POST, OPTIONS',\n          'Access-Control-Allow-Headers': 'Content-Type'\n        }\n      });\n    }\n    if (request.method === 'POST') {\n      const data = await request.json();\n      console.log('Event Recv:', data);\n      return new Response('OK', { headers: { 'Access-Control-Allow-Origin': '*' } });\n    }\n    return new Response('Online', { status: 200 });\n  }\n};`;
-                      navigator.clipboard.writeText(code);
-                    }}
-                    className="text-[10px] font-black bg-indigo-600 px-4 py-2 rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 uppercase tracking-widest"
-                   >
-                     Copy To Clipboard
-                   </button>
-                </div>
-                <pre className="text-indigo-200 text-xs overflow-x-auto bg-slate-950 p-8 rounded-2xl border border-slate-800 leading-relaxed font-mono">
-{`export default {
-  async fetch(request, env, ctx) {
-    // 1. Handle CORS Preflight Handshake
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        }
-      });
-    }
-
-    // 2. Process Analytics Data
-    if (request.method === 'POST') {
-      const data = await request.json();
-      
-      // PERSISTENCE: Send to Cloudflare D1 or KV
-      // await env.DB.prepare("INSERT INTO log (data) VALUES (?)").bind(JSON.stringify(data)).run();
-      
-      console.log('LiteTrack Record:', data);
-      
-      return new Response('OK', { 
-        status: 200,
-        headers: { 'Access-Control-Allow-Origin': '*' } 
-      });
-    }
-
-    return new Response('LiteTrack Online', { status: 200 });
-  }
-};`}
-                </pre>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
-             <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Strategy Engine</h2>
-                <p className="text-sm text-slate-500 mb-10 font-medium">Configure how the dashboard interprets traffic data for AI insights.</p>
-                
-                <div className="space-y-8">
-                   <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Inference Provider</label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <button 
-                            onClick={() => setAiConfig({ ...aiConfig, provider: 'gemini-builtin' })}
-                            className={`p-6 rounded-2xl border-2 text-left transition-all ${aiConfig.provider === 'gemini-builtin' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-300'}`}
-                         >
-                            <span className="block font-bold text-slate-900 mb-1">Standard Gemini</span>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Fast Edge Analysis</span>
-                         </button>
-                         <button 
-                            onClick={() => setAiConfig({ ...aiConfig, provider: 'custom-endpoint' })}
-                            className={`p-6 rounded-2xl border-2 text-left transition-all ${aiConfig.provider === 'custom-endpoint' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 hover:border-slate-300'}`}
-                         >
-                            <span className="block font-bold text-slate-900 mb-1">Custom API Wrapper</span>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Proprietary LLM Pipeline</span>
-                         </button>
-                      </div>
-                   </div>
-
-                   <div className="pt-8 border-t border-slate-100">
-                     {aiConfig.provider === 'gemini-builtin' ? (
-                        <div className="space-y-6">
-                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Model Fidelity</label>
-                              <select 
-                                 value={aiConfig.model}
-                                 onChange={(e: any) => setAiConfig({ ...aiConfig, model: e.target.value })}
-                                 className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100"
-                              >
-                                 <option value="gemini-3-flash-preview">Flash (Instant Performance)</option>
-                                 <option value="gemini-3-pro-preview">Pro (Advanced Behavioral Context)</option>
-                              </select>
+               {isVerified && (
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-bottom-6 duration-700">
+                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+                      <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
+                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                        </div>
+                        Quick Simulation
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4 flex-1">
+                         {[
+                           { label: 'Simulate Home Landing', type: 'pageview', sub: 'Event: pageview | /home', help: 'Increments funnel base. Path: /home' },
+                           { label: 'Enter Pricing Journey', type: 'view_pricing', sub: 'Event: pageview | /pricing', help: 'Path: /pricing' },
+                           { label: 'Trigger Signup Modal', type: 'signup_start', sub: 'Event: signup_start', help: 'Type: signup_start' },
+                           { label: 'Confirm Checkout Sale', type: 'purchase_complete', sub: 'Event: purchase_complete', help: 'Type: purchase_complete' },
+                         ].map(t => (
+                           <div key={t.label} className="relative group/sim">
+                             <button onClick={() => quickSend(t.type)} className="w-full flex items-center justify-between p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl hover:border-indigo-600 hover:bg-white transition-all group active:scale-[0.98] text-left">
+                                <div>
+                                  <span className="text-sm font-bold text-slate-800 block">{t.label}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono mt-0.5">{t.sub}</span>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 5l7 7-7 7" /></svg>
+                                </div>
+                             </button>
+                             <div className="absolute top-1/2 left-full ml-4 -translate-y-1/2 opacity-0 invisible group-hover/sim:opacity-100 group-hover/sim:visible transition-all pointer-events-none bg-slate-900 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg z-20 uppercase tracking-widest border border-white/10 shadow-xl">
+                               {t.help}
+                               <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900"></div>
+                             </div>
                            </div>
-                           <button 
-                             onClick={async () => (window as any).aistudio?.openSelectKey()}
-                             className="w-full py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-50 transition-all uppercase tracking-widest shadow-sm"
-                           >
-                             Manage API Credentials
-                           </button>
+                         ))}
+                      </div>
+                    </div>
+                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+                      <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
+                        <div className="p-3 bg-slate-900 text-white rounded-2xl">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
                         </div>
-                     ) : (
-                        <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">External Endpoint</label>
-                           <input 
-                              type="text" placeholder="https://your-api.com/v1/analyze"
-                              value={aiConfig.customEndpoint || ''}
-                              onChange={(e) => setAiConfig({ ...aiConfig, customEndpoint: e.target.value })}
-                              className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-100 font-mono"
-                           />
+                        Payload Dispatch
+                      </h3>
+                      <div className="flex-1 flex flex-col group/payload relative">
+                        <textarea 
+                          value={customJson} onChange={(e) => setCustomJson(e.target.value)}
+                          className="w-full bg-slate-900 text-indigo-300 font-mono text-[11px] p-6 rounded-2xl border-4 border-slate-800 focus:ring-4 focus:ring-indigo-100 min-h-[180px] mb-6 outline-none shadow-inner"
+                        />
+                        <button onClick={() => sendSimulatedEvent()} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-black transition-all shadow-xl active:scale-95 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                          Transmit Payload
+                        </button>
+                        <div className="absolute bottom-full left-0 mb-3 w-48 p-2 bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-lg opacity-0 invisible group-hover/payload:opacity-100 group-hover/payload:visible transition-all z-20 text-center border border-white/5">
+                            Send custom event JSON
+                            <div className="absolute top-full left-8 border-8 border-transparent border-t-slate-800"></div>
                         </div>
-                     )}
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
+                      </div>
+                    </div>
+                 </div>
+               )}
+            </div>
+          )}
+
+          {activeTab === 'deploy' && (
+            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+               <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Receiver Implementation</h2>
+                  <p className="text-sm text-slate-500 mb-12 font-medium">Use these optimized edge-scripts to create your own globally distributed analytics endpoint.</p>
+                  <SnippetGenerator endpoint={customEndpoint} />
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+               <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">AI Strategy Engine</h2>
+                  <p className="text-sm text-slate-500 mb-10 font-medium">Configure how behavioral data is processed for strategic reporting.</p>
+                  
+                  <div className="space-y-8">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Intelligence Model</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="relative group/provider">
+                             <button 
+                                onClick={() => setAiConfig({ ...aiConfig, provider: 'gemini-builtin' })}
+                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'gemini-builtin' ? 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
+                             >
+                                <span className="block font-bold text-slate-900">Edge Gemini</span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Built-in Flash Inference</span>
+                             </button>
+                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
+                                Direct integration with Google's high-speed Flash models.
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900"></div>
+                             </div>
+                           </div>
+                           <div className="relative group/provider">
+                             <button 
+                                onClick={() => setAiConfig({ ...aiConfig, provider: 'custom-endpoint' })}
+                                className={`w-full p-6 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 ${aiConfig.provider === 'custom-endpoint' ? 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-200'}`}
+                             >
+                                <span className="block font-bold text-slate-900">Custom Logic</span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Proprietary External Provider</span>
+                             </button>
+                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
+                                Route traffic insights through your own specialized API.
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900"></div>
+                             </div>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="pt-8 border-t border-slate-100">
+                       {aiConfig.provider === 'gemini-builtin' ? (
+                          <div className="space-y-6">
+                             <div className="relative group/tier">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Inference Tier</label>
+                                <select 
+                                   value={aiConfig.model}
+                                   onChange={(e: any) => setAiConfig({ ...aiConfig, model: e.target.value })}
+                                   className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 appearance-none transition-all cursor-pointer"
+                                >
+                                   <option value="gemini-3-flash-preview">Flash (Balanced Velocity)</option>
+                                   <option value="gemini-3-pro-preview">Pro (Advanced Reasoning)</option>
+                                </select>
+                                <div className="absolute top-0 right-0 p-3 opacity-40 pointer-events-none">
+                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                                <div className="absolute bottom-full left-0 mb-3 w-56 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/tier:opacity-100 group-hover/tier:visible transition-all text-center font-bold uppercase tracking-widest border border-white/5 shadow-xl">
+                                    Higher tiers provide deeper reasoning but may increase latency.
+                                    <div className="absolute top-full left-8 border-8 border-transparent border-t-slate-800"></div>
+                                </div>
+                             </div>
+                             <div className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-between gap-6">
+                               <div className="flex-1">
+                                 <h4 className="text-sm font-bold text-slate-800 mb-1">Inference Auth</h4>
+                                 <p className="text-xs text-slate-500 font-medium leading-relaxed">Required for accessing restricted models.</p>
+                               </div>
+                               <button 
+                                 onClick={async () => (window as any).aistudio?.openSelectKey()}
+                                 className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-100 transition-all shadow-sm active:scale-95 uppercase tracking-widest"
+                               >
+                                 Manage Keys
+                               </button>
+                             </div>
+                          </div>
+                       ) : (
+                          <div>
+                             <label className="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Inference Endpoint URL</label>
+                             <input 
+                                type="text" placeholder="https://your-api.com/v1/analyze"
+                                value={aiConfig.customEndpoint || ''}
+                                onChange={(e) => setAiConfig({ ...aiConfig, customEndpoint: e.target.value })}
+                                className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-indigo-100 font-mono shadow-inner"
+                             />
+                          </div>
+                       )}
+                     </div>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

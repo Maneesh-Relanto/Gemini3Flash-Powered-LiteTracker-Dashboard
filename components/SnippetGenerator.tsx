@@ -65,12 +65,18 @@ xhr.send(JSON.stringify({
             </button>
           ))}
         </div>
-        <button 
-          onClick={copyToClipboard}
-          className="w-full md:w-auto text-sm font-bold px-6 py-2.5 bg-slate-700 text-slate-200 rounded-xl hover:bg-indigo-600 hover:text-white transition-all border border-slate-600 active:scale-95 shadow-lg"
-        >
-          {copied ? 'Copied to Clipboard!' : 'Copy to Clipboard'}
-        </button>
+        <div className="relative group/copy w-full md:w-auto">
+          <button 
+            onClick={copyToClipboard}
+            className="w-full md:w-auto text-sm font-bold px-6 py-2.5 bg-slate-700 text-slate-200 rounded-xl hover:bg-indigo-600 hover:text-white transition-all border border-slate-600 active:scale-95 shadow-lg"
+          >
+            {copied ? 'Copied to Clipboard!' : 'Copy to Clipboard'}
+          </button>
+          <div className="absolute bottom-full right-1/2 translate-x-1/2 md:right-0 md:translate-x-0 mb-3 w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 invisible group-hover/copy:opacity-100 group-hover/copy:visible transition-all pointer-events-none z-20 text-center border border-white/5 shadow-2xl font-bold uppercase tracking-widest">
+            Copies the optimized JS integration code to your clipboard.
+            <div className="absolute top-full left-1/2 -translate-x-1/2 md:left-auto md:right-8 border-8 border-transparent border-t-slate-800"></div>
+          </div>
+        </div>
       </div>
 
       <div className="mb-6">
