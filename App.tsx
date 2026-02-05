@@ -66,16 +66,19 @@ const App: React.FC = () => {
     const initialEvents: AnalyticsEvent[] = [];
     const now = Date.now();
     const seed = (count: number, path: string, type: string) => {
+      const referrers = ['google.com', 'twitter.com', 'direct', 'linkedin.com', 'github.com'];
       for (let i = 0; i < count; i++) {
         initialEvents.push({
           id: Math.random().toString(36).substr(2, 9),
-          type, path, referrer: 'direct',
+          type, path, 
+          referrer: referrers[Math.floor(Math.random() * referrers.length)],
           timestamp: now - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000),
           metadata: { 
             browser: i % 3 === 0 ? 'Chrome' : i % 3 === 1 ? 'Safari' : 'Firefox', 
             os: i % 2 === 0 ? 'MacOS' : 'Windows', 
             device: i % 4 === 0 ? 'mobile' : 'desktop',
-            duration: Math.floor(Math.random() * 180) + 20
+            duration: Math.floor(Math.random() * 180) + 20,
+            loadTime: Math.floor(Math.random() * 1100) + 350
           }
         });
       }
@@ -101,20 +104,32 @@ const App: React.FC = () => {
     const totalEvents = events.length;
     const homeViews = events.filter(e => e.path === '/home').length;
     const progressionViews = events.filter(e => e.path !== '/home').length;
-    const bounceRate = Math.round((homeViews / (homeViews + progressionViews || 1)) * 100 * 0.45); // Mocked algorithm for bounce
+    const bounceRate = Math.round((homeViews / (homeViews + progressionViews || 1)) * 100 * 0.45);
     
     const uniqueIds = new Set(events.map(e => `${e.metadata.browser}-${e.metadata.os}-${e.path.slice(0,3)}`));
-    const uniqueVisitors = uniqueIds.size * 12; // Scaled simulation
+    const uniqueVisitors = uniqueIds.size * 12;
 
     const avgDuration = events.length > 0 
       ? Math.round(events.reduce((acc, e) => acc + (e.metadata.duration || 45), 0) / events.length)
       : 0;
+
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const activeNow = events.filter(e => e.timestamp > fiveMinutesAgo).length;
+
+    const avgLoadTime = events.length > 0
+      ? Math.round(events.reduce((acc, e) => acc + (e.metadata.loadTime || 600), 0) / events.length)
+      : 0;
+
+    const uniqueSources = new Set(events.map(e => e.referrer)).size;
 
     return {
       totalEvents,
       uniqueVisitors,
       bounceRate: bounceRate > 100 ? 100 : bounceRate,
       avgDuration,
+      activeNow,
+      avgLoadTime,
+      uniqueSources,
       pipelineScore: Math.round((events.filter(e => e.type === 'purchase_complete').length / (events.filter(e => e.path === '/home').length || 1)) * 100)
     };
   }, [events]);
@@ -198,7 +213,8 @@ const App: React.FC = () => {
           referrer: 'LiteTrack Sim', timestamp: Date.now(),
           metadata: { 
             browser: 'Chrome', os: 'Cloud', device: 'desktop', 
-            duration: Math.floor(Math.random() * 100) + 10 
+            duration: Math.floor(Math.random() * 100) + 10,
+            loadTime: Math.floor(Math.random() * 500) + 150
           }
         };
         setEvents(prev => [...prev, localEvent]);
@@ -291,7 +307,6 @@ const App: React.FC = () => {
             <p className="text-slate-500 text-sm font-medium">Real-time Web Analytics Interface</p>
           </div>
           <div className="flex items-center gap-4">
-             {/* Theme Toggle */}
              <button 
                 onClick={toggleTheme}
                 className={`p-2.5 rounded-xl border transition-all ${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-yellow-400' : 'bg-white border-slate-200 text-slate-600'}`}
@@ -357,10 +372,10 @@ const App: React.FC = () => {
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard 
-                  label="Total Events" 
-                  value={stats.totalEvents.toLocaleString()} 
-                  description="Total volume of user events ingested since session start."
-                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} 
+                  label="Active Now" 
+                  value={stats.activeNow.toLocaleString()} 
+                  description="Users who have interacted with the site in the last 5 minutes."
+                  icon={<div className="relative"><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg></div>} 
                 />
                 <StatCard 
                   label="Unique Visitors" 
@@ -379,6 +394,24 @@ const App: React.FC = () => {
                   value={`${stats.avgDuration}s`} 
                   description="The average time spent per detected user session."
                   icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+                />
+                <StatCard 
+                  label="Load Velocity" 
+                  value={`${stats.avgLoadTime}ms`} 
+                  description="Average time from page request until interaction capability."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} 
+                />
+                <StatCard 
+                  label="Unique Sources" 
+                  value={stats.uniqueSources.toLocaleString()} 
+                  description="Number of unique referring domains and traffic origins detected."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>} 
+                />
+                <StatCard 
+                  label="Total Events" 
+                  value={stats.totalEvents.toLocaleString()} 
+                  description="Total volume of user events ingested since session start."
+                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>} 
                 />
                 <StatCard 
                   label="Network Health" 
@@ -729,7 +762,7 @@ const App: React.FC = () => {
                              </button>
                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
                                 Direct integration with Google's high-speed Flash models.
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900"></div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
                              </div>
                            </div>
                            <div className="relative group/provider">
@@ -742,7 +775,7 @@ const App: React.FC = () => {
                              </button>
                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 p-2.5 bg-slate-900 text-white text-[9px] rounded-lg opacity-0 invisible group-hover/provider:opacity-100 group-hover/provider:visible transition-all z-20 text-center font-bold uppercase tracking-widest border border-white/10 shadow-xl pointer-events-none">
                                 Route traffic insights through your own specialized API.
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900"></div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
                              </div>
                            </div>
                         </div>

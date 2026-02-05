@@ -10,6 +10,7 @@ export interface AnalyticsEvent {
     os: string;
     device: string;
     duration?: number;
+    loadTime?: number; // Time in ms for the page to become interactive
   };
 }
 
@@ -30,7 +31,6 @@ export interface FunnelStep {
   count: number;
   dropoff: number;
   conversion: number;
-  // Added stepKey for UI tracking and active state identification
   stepKey: string;
 }
 
